@@ -1,6 +1,59 @@
 @import "tailwindcss";
 
+:root {
+    --geist-foreground: #000;
+    --geist-background: #fff;
+    --accents-1: #fafafa;
+    --accents-2: #eaeaea;
+    --accents-3: #999;
+    --accents-4: #888;
+    --accents-5: #666;
+    --accents-6: #444;
+    --accents-7: #333;
+    --accents-8: #111;
+    --geist-success: #0070f3;
+    --geist-error: #ee0000;
+    --geist-warning: #f5a623;
+}
+
 body {
+    background-color: var(--geist-background);
+    color: var(--geist-foreground);
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
     margin: 0;
-    padding: 0;
+}
+
+@layer utilities {
+    .vercel-card {
+        @apply bg-white border border-[#eaeaea] rounded-lg transition-all hover:border-[#000];
+    }
+
+    .vercel-btn-primary {
+        @apply bg-black text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-white hover:text-black border border-black transition-all disabled:opacity-30 disabled:hover:bg-black disabled:hover:text-white;
+    }
+
+    .vercel-btn-secondary {
+        @apply bg-white text-gray-900 border border-[#eaeaea] px-4 py-2 rounded-md font-medium text-sm hover:border-black transition-all disabled:opacity-30;
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #eaeaea;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #ccc;
 }

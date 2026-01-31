@@ -1,34 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from './App';
 
-// --- Icons ---
-const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>;
-const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>;
-const IconFile = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14.5 2 14.5 7.5 20 7.5" /></svg>;
-const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="green" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
-const IconX = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
+const IconFile = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
+const IconCheck = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0070f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
+const IconX = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ee0000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
 
 export default function NotionUploader() {
+    const { addToast } = useToast();
     const [config, setConfig] = useState({ token: '', databaseId: '' });
     const [rawInput, setRawInput] = useState('');
     const [items, setItems] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [logs, setLogs] = useState([]);
-    const [showSettings, setShowSettings] = useState(false);
 
     useEffect(() => {
         const savedToken = localStorage.getItem('notion_token');
         const savedDbId = localStorage.getItem('notion_database_id');
         if (savedToken || savedDbId) setConfig({ token: savedToken || '', databaseId: savedDbId || '' });
-        else setShowSettings(true);
     }, []);
-
-    const saveConfig = () => {
-        localStorage.setItem('notion_token', config.token.trim());
-        localStorage.setItem('notion_database_id', config.databaseId.trim());
-        alert('✨ 설정이 저장되었습니다.');
-        setShowSettings(false);
-    };
 
     const parseInput = (text) => {
         if (!text.trim()) { setItems([]); return; }
@@ -38,7 +28,8 @@ export default function NotionUploader() {
             const fields = line.split('\t');
             const finalFields = fields.length > 1 ? fields : line.split(',');
             return {
-                id: idx, no: finalFields[0]?.trim() || '',
+                id: idx,
+                no: finalFields[0]?.trim() || '',
                 depth1: finalFields[1]?.trim() || '',
                 depth2: finalFields[2]?.trim() || '',
                 checkPoint: finalFields[3]?.trim() || '',
@@ -57,8 +48,6 @@ export default function NotionUploader() {
     const createNotionPage = async (item) => {
         const cleanToken = config.token.trim();
         const cleanDbId = config.databaseId.trim().replace(/-/g, '');
-
-        // 로컬 개발 환경인지 Vercel 배포 환경인지에 따라 URL 분기
         const apiPath = window.location.hostname === 'localhost' ? '/notion-api/v1/pages' : '/api/notion';
 
         const payload = {
@@ -77,7 +66,6 @@ export default function NotionUploader() {
             }
         };
 
-        // 로컬에서는 직접 프록시를 쓰므로 body만 보냄 (헤더에 토큰 포함)
         const fetchOptions = window.location.hostname === 'localhost' ? {
             method: 'POST',
             headers: {
@@ -94,23 +82,16 @@ export default function NotionUploader() {
 
         const response = await fetch(apiPath, fetchOptions);
         const data = await response.json();
-
-        if (!response.ok) {
-            console.error('Notion Error Details:', data);
-            throw new Error(`${data.code || 'Error'}: ${data.message || 'Unknown error'}`);
-        }
+        if (!response.ok) throw new Error(`${data.code || 'Error'}: ${data.message || 'Unknown error'}`);
         return data;
     };
 
     const handleUploadAll = async () => {
         if (!config.token.trim() || !config.databaseId.trim()) {
-            alert('⚠️ 설정을 완료해주세요.');
-            setShowSettings(true);
+            addToast('Notion settings incomplete. Check settings tab.', 'error');
             return;
         }
-        setIsUploading(true);
-        setLogs([]);
-        setProgress(0);
+        setIsUploading(true); setLogs([]); setProgress(0);
         const updatedItems = [...items];
 
         for (let i = 0; i < updatedItems.length; i++) {
@@ -130,67 +111,99 @@ export default function NotionUploader() {
             await new Promise(r => setTimeout(r, 400));
         }
         setIsUploading(false);
-        setRawInput('');
-        setItems([]);
-        setLogs([]);
-        alert('🎉 모든 작업이 완료되었습니다.');
+        addToast(`🎉 ${items.length}개 업로드 완료!`);
+        setRawInput(''); setItems([]);
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
-            <div className="max-w-6xl mx-auto p-6 md:p-12">
-                <header className="flex justify-between items-end mb-12">
-                    <div>
-                        <h1 className="text-4xl font-black tracking-tight text-slate-900">Notion Uploader</h1>
+        <div className="space-y-12">
+            <div>
+                <h1 className="text-[32px] font-bold tracking-tighter text-black">Uploader</h1>
+                <p className="text-[#666] text-[15px]">Paste your TSV data (No, depth1, depth2, checkPoint, scenario) to automatically sync with Notion.</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Input Section */}
+                <div className="lg:col-span-12">
+                    <div className="vercel-card overflow-hidden flex flex-col">
+                        <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
+                            <span className="text-[13px] font-semibold text-[#666] flex items-center gap-2">
+                                <IconFile /> Raw Data Input
+                            </span>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[12px] text-[#999]">{items.length} items parsed</span>
+                                <button
+                                    onClick={handleUploadAll}
+                                    disabled={isUploading || items.length === 0}
+                                    className="vercel-btn-primary"
+                                >
+                                    {isUploading ? `Uploading ${progress}%` : 'Deploy to Notion'}
+                                </button>
+                            </div>
+                        </div>
+                        <textarea
+                            value={rawInput}
+                            onChange={(e) => setRawInput(e.target.value)}
+                            className="w-full h-64 p-6 outline-none text-[13.5px] font-mono leading-relaxed"
+                            placeholder="붙여넣으세요..."
+                        />
                     </div>
-                    <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-2 px-4 py-2 border rounded-xl hover:bg-slate-50 transition-colors"><IconSettings /> 설정</button>
-                </header>
+                </div>
 
-                <main className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {showSettings && (
-                        <div className="lg:col-span-12 bg-white border rounded-[24px] p-8 shadow-sm animate-in fade-in slide-in-from-top-2">
-                            <h2 className="font-bold mb-6">API 연동 정보</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2"><label className="text-xs font-bold text-slate-400 uppercase">Notion API Token</label><input type="password" value={config.token} onChange={(e) => setConfig({ ...config, token: e.target.value })} className="w-full p-4 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="secret_..." /></div>
-                                <div className="space-y-2"><label className="text-xs font-bold text-slate-400 uppercase">Database ID</label><input type="text" value={config.databaseId} onChange={(e) => setConfig({ ...config, databaseId: e.target.value })} className="w-full p-4 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="32자리 ID" /></div>
-                            </div>
-                            <div className="flex justify-end mt-6"><button onClick={saveConfig} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold hover:bg-black transition-colors">설정 저장</button></div>
+                {/* Queue & Logs */}
+                <div className="lg:col-span-8">
+                    <div className="vercel-card h-[500px] flex flex-col">
+                        <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
+                            <span className="text-[13px] font-semibold text-[#666]">Queue Overview</span>
                         </div>
-                    )}
-
-                    <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-6">
-                            <div className="bg-white border rounded-[32px] p-8 shadow-sm">
-                                <h3 className="font-bold flex items-center gap-2 mb-4"><IconFile /> TSV 데이터</h3>
-                                <textarea value={rawInput} onChange={(e) => setRawInput(e.target.value)} className="w-full h-80 p-4 bg-slate-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-xs" placeholder="붙여넣으세요..." />
-                            </div>
-                            <button onClick={handleUploadAll} disabled={isUploading || items.length === 0} className={`w-full py-5 rounded-[20px] font-black text-white shadow-lg transition-all ${isUploading || items.length === 0 ? 'bg-slate-200 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98]'}`}>
-                                {isUploading ? `진행 중 (${progress}%)` : `${items.length}개 업로드 시작`}
-                            </button>
-                        </div>
-
-                        <div className="bg-white border rounded-[32px] p-8 shadow-sm flex flex-col min-h-[500px]">
-                            <h3 className="font-bold mb-6">진행 상황 리포트</h3>
-                            <div className="flex-1 overflow-auto bg-slate-50 rounded-2xl p-4 mb-4">
-                                {items.length > 0 ? (
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200"><th className="pb-3 w-16 text-center">상태</th><th className="pb-3 pl-2">번호</th><th className="pb-3">내용</th></thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {items.map((item) => (
-                                                <tr key={item.id} className="group"><td className="py-2 text-center">{item.status === 'success' ? <IconCheck /> : item.status === 'error' ? <IconX /> : item.status === 'uploading' ? '...' : '-'}</td><td className="py-2 pl-2 font-bold text-slate-700">{item.no}</td><td className="py-2 text-slate-400 truncate max-w-[150px]">{item.checkPoint}</td></tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-slate-300 font-bold">데이터가 없습니다.</div>
-                                )}
-                            </div>
-                            <div className="h-32 overflow-auto bg-slate-900 rounded-2xl p-4 text-[10px] font-mono text-slate-400">
-                                {logs.map((log, i) => <div key={i} className="mb-1 leading-relaxed">{log}</div>)}
-                            </div>
+                        <div className="flex-1 overflow-auto">
+                            {items.length > 0 ? (
+                                <table className="w-full text-left">
+                                    <thead className="sticky top-0 bg-white border-b border-[#eaeaea] z-10">
+                                        <tr className="text-[11px] font-bold text-[#888] uppercase tracking-wider">
+                                            <th className="px-6 py-3 w-16 text-center">Status</th>
+                                            <th className="px-6 py-3">No.</th>
+                                            <th className="px-6 py-3">Checkpoint</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#eaeaea]">
+                                        {items.map((item) => (
+                                            <tr key={item.id} className="text-[13.5px] transition-colors hover:bg-[#fafafa]">
+                                                <td className="px-6 py-4 text-center">
+                                                    {item.status === 'success' ? <IconCheck /> : item.status === 'error' ? <IconX /> : item.status === 'uploading' ? '...' : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 font-bold">{item.no}</td>
+                                                <td className="px-6 py-4 text-[#666] truncate max-w-[300px]">{item.checkPoint}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-slate-300 font-bold">데이터가 없습니다.</div>
+                            )}
                         </div>
                     </div>
-                </main>
+                </div>
+
+                <div className="lg:col-span-4">
+                    <div className="vercel-card h-[500px] flex flex-col bg-black overflow-hidden shadow-2xl">
+                        <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-[#666] uppercase tracking-widest">Real-time Logs</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#0070f3] animate-pulse" />
+                        </div>
+                        <div className="flex-1 p-6 font-mono text-[11.5px] leading-6 overflow-auto text-[#888]">
+                            {logs.map((log, i) => (
+                                <div key={i} className="mb-1 flex gap-4 transition-all animate-in fade-in slide-in-from-left-2">
+                                    <span className="text-[#333] select-none">[{items.length - i}]</span>
+                                    <span className={log.includes('성공') ? 'text-white' : 'text-[#ee0000]'}>{log}</span>
+                                </div>
+                            ))}
+                            {logs.length === 0 && (
+                                <div className="h-full flex items-center justify-center opacity-20 tracking-widest text-white">READY...</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
