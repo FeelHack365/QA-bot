@@ -46,8 +46,8 @@ export default function NotionUploader() {
 
     // --- Handlers ---
     const saveConfig = () => {
-        localStorage.setItem('notion_token', config.token);
-        localStorage.setItem('notion_database_id', config.databaseId);
+        localStorage.setItem('notion_token', config.token.trim());
+        localStorage.setItem('notion_database_id', config.databaseId.trim());
         alert('✨ 설정이 안전하게 저장되었습니다.');
         setShowSettings(false);
     };
@@ -88,32 +88,33 @@ export default function NotionUploader() {
     }, [rawInput]);
 
     const createNotionPage = async (item) => {
-        // Notion API는 브라우저에서 직접 호출 시 CORS 에러가 발생합니다.
-        // Vite Proxy 기능을 사용하여 /notion-api/ 경로로 요청을 보냅니다.
+        const cleanToken = config.token.trim();
+        const cleanDbId = config.databaseId.trim();
+
         const response = await fetch('/notion-api/v1/pages', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${config.token}`,
+                'Authorization': `Bearer ${cleanToken}`,
                 'Content-Type': 'application/json',
                 'Notion-Version': '2022-06-28'
             },
             body: JSON.stringify({
-                parent: { database_id: config.databaseId },
+                parent: { database_id: cleanDbId },
                 properties: {
                     'No.': {
-                        title: [{ text: { content: item.no } }]
+                        title: [{ text: { content: item.no || '-' } }]
                     },
                     '1 Depth 화면': {
                         select: { name: item.depth1 || 'N/A' }
                     },
                     '2 Depth 영역': {
-                        rich_text: [{ text: { content: item.depth2 } }]
+                        rich_text: [{ text: { content: item.depth2 || '' } }]
                     },
                     '확인 사항': {
-                        rich_text: [{ text: { content: item.checkPoint } }]
+                        rich_text: [{ text: { content: item.checkPoint || '' } }]
                     },
                     '시나리오': {
-                        rich_text: [{ text: { content: item.scenario } }]
+                        rich_text: [{ text: { content: item.scenario || '' } }]
                     },
                     '결과': {
                         select: { name: 'PENDING' }
@@ -127,13 +128,13 @@ export default function NotionUploader() {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'Notion API Error');
+            throw new Error(`${response.status} ${errorData.code || 'Error'}: ${errorData.message || 'Unknown error'}`);
         }
         return response.json();
     };
 
     const handleUploadAll = async () => {
-        if (!config.token || !config.databaseId) {
+        if (!config.token.trim() || !config.databaseId.trim()) {
             alert('⚠️ 설정을 먼저 완료해주세요.');
             setShowSettings(true);
             return;
@@ -152,30 +153,26 @@ export default function NotionUploader() {
 
         for (let i = 0; i < updatedItems.length; i++) {
             const item = updatedItems[i];
-
-            // 상태 업데이트: uploading
             updatedItems[i] = { ...item, status: 'uploading' };
             setItems([...updatedItems]);
 
             try {
                 await createNotionPage(item);
-                updatedItems[i] = { ...item, status: 'success' };
-                setLogs(prev => [`✅ [${item.no}] 업로드 성공`, ...prev]);
+                updatedItems[i] = { ...updatedItems[i], status: 'success' };
+                setLogs(prev => [`✅ [${item.no}] 성공`, ...prev]);
             } catch (err) {
-                console.error(err);
-                updatedItems[i] = { ...item, status: 'error', errorMessage: err.message };
+                console.error('Upload Error:', err);
+                updatedItems[i] = { ...updatedItems[i], status: 'error', errorMessage: err.message };
                 setLogs(prev => [`❌ [${item.no}] 실패: ${err.message}`, ...prev]);
             }
 
             setProgress(Math.round(((i + 1) / updatedItems.length) * 100));
             setItems([...updatedItems]);
-
-            // Notion Rate Limit (3 req/sec) 방지
             await new Promise(r => setTimeout(r, 400));
         }
 
         setIsUploading(false);
-        alert('🎉 모든 업로드 작업이 완료되었습니다.');
+        alert('🎉 모든 작업이 완료되었습니다.');
     };
 
     // --- Sub-components ---
