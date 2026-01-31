@@ -56,16 +56,14 @@ export default function NotionUploader() {
 
     const createNotionPage = async (item) => {
         const cleanToken = config.token.trim();
-        const cleanDbId = config.databaseId.trim().replace(/-/g, ''); // '-' 포함 여부 상관없이 처리
+        const cleanDbId = config.databaseId.trim().replace(/-/g, '');
 
-        const response = await fetch('/notion-api/v1/pages', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${cleanToken}`,
-                'Content-Type': 'application/json',
-                'Notion-Version': '2022-06-28'
-            },
-            body: JSON.stringify({
+        // 로컬 개발 환경인지 Vercel 배포 환경인지에 따라 URL 분기
+        const apiPath = window.location.hostname === 'localhost' ? '/notion-api/v1/pages' : '/api/notion';
+
+        const payload = {
+            token: cleanToken,
+            body: {
                 parent: { type: 'database_id', database_id: cleanDbId },
                 properties: {
                     'No.': { title: [{ text: { content: item.no || '-' } }] },
@@ -76,13 +74,30 @@ export default function NotionUploader() {
                     '결과': { select: { name: 'PENDING' } },
                     '전송 상태': { select: { name: '미전송' } }
                 }
-            })
-        });
+            }
+        };
 
+        // 로컬에서는 직접 프록시를 쓰므로 body만 보냄 (헤더에 토큰 포함)
+        const fetchOptions = window.location.hostname === 'localhost' ? {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${cleanToken}`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28'
+            },
+            body: JSON.stringify(payload.body)
+        } : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        };
+
+        const response = await fetch(apiPath, fetchOptions);
         const data = await response.json();
+
         if (!response.ok) {
             console.error('Notion Error Details:', data);
-            throw new Error(`${data.code}: ${data.message}`);
+            throw new Error(`${data.code || 'Error'}: ${data.message || 'Unknown error'}`);
         }
         return data;
     };
@@ -108,7 +123,6 @@ export default function NotionUploader() {
                 setLogs(prev => [`✅ [${item.no}] 성공`, ...prev]);
             } catch (err) {
                 updatedItems[i].status = 'error';
-                // 구체적인 에러 메시지 출력
                 setLogs(prev => [`❌ [${item.no}] 실패: ${err.message}`, ...prev]);
             }
             setProgress(Math.round(((i + 1) / updatedItems.length) * 100));
@@ -124,7 +138,7 @@ export default function NotionUploader() {
                 <header className="flex justify-between items-end mb-12">
                     <div>
                         <h1 className="text-4xl font-black tracking-tight text-slate-900">Notion <span className="text-indigo-600">Uploader</span></h1>
-                        <p className="text-slate-500 mt-2">QA 테스트 케이스를 노션으로 즉시 업로드합니다.</p>
+                        <p className="text-slate-500 mt-2">Serverless API를 사용하여 안전하게 전송합니다.</p>
                     </div>
                     <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-2 px-4 py-2 border rounded-xl hover:bg-slate-50 transition-colors"><IconSettings /> 설정</button>
                 </header>
@@ -142,7 +156,6 @@ export default function NotionUploader() {
                     )}
 
                     <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Input Area */}
                         <div className="space-y-6">
                             <div className="bg-white border rounded-[32px] p-8 shadow-sm">
                                 <h3 className="font-bold flex items-center gap-2 mb-4"><IconFile /> TSV 데이터</h3>
@@ -153,7 +166,6 @@ export default function NotionUploader() {
                             </button>
                         </div>
 
-                        {/* Status Area */}
                         <div className="bg-white border rounded-[32px] p-8 shadow-sm flex flex-col min-h-[500px]">
                             <h3 className="font-bold mb-6">진행 상황 리포트</h3>
                             <div className="flex-1 overflow-auto bg-slate-50 rounded-2xl p-4 mb-4">
