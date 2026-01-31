@@ -131,6 +131,7 @@ export default function NotionUploader() {
         }
         setIsUploading(false);
         setRawInput('');
+        setItems([]);
         alert('🎉 모든 작업이 완료되었습니다.');
     };
 
@@ -139,8 +140,7 @@ export default function NotionUploader() {
             <div className="max-w-6xl mx-auto p-6 md:p-12">
                 <header className="flex justify-between items-end mb-12">
                     <div>
-                        <h1 className="text-4xl font-black tracking-tight text-slate-900">Notion <span className="text-indigo-600">Uploader</span></h1>
-                        <p className="text-slate-500 mt-2">Serverless API를 사용하여 안전하게 전송합니다.</p>
+                        <h1 className="text-4xl font-black tracking-tight text-slate-900">Notion Uploader</h1>
                     </div>
                     <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-2 px-4 py-2 border rounded-xl hover:bg-slate-50 transition-colors"><IconSettings /> 설정</button>
                 </header>
