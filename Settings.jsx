@@ -39,16 +39,16 @@ export default function Settings() {
     return (
         <div className="space-y-12">
             <div>
-                <h1 className="text-[32px] font-bold tracking-tighter text-black">Settings</h1>
-                <p className="text-[#666] text-[15px]">Manage your API tokens and environment configurations. Changes are saved automatically.</p>
+                <h1 className="text-[32px] font-bold tracking-tighter text-black">설정</h1>
+                <p className="text-[#666] text-[15px]">API 토큰 및 환경 설정을 관리합니다. 변경 사항은 자동으로 저장됩니다.</p>
             </div>
 
             <div className="space-y-8 max-w-[1000px]">
                 {/* Notion Section */}
                 <section className="vercel-card overflow-hidden">
                     <div className="px-8 py-6 border-b border-[#eaeaea]">
-                        <h2 className="text-xl font-bold">Notion Integration</h2>
-                        <p className="text-[13px] text-[#666] mt-1">Connect your workspace for data ingestion.</p>
+                        <h2 className="text-xl font-bold">노션 연동</h2>
+                        <p className="text-[13px] text-[#666] mt-1">데이터 입수를 위해 워크스페이스를 연결합니다.</p>
                     </div>
                     <div className="px-8 py-10 space-y-8 bg-[#fafafa]">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -79,16 +79,16 @@ export default function Settings() {
                 {/* Slack Section */}
                 <section className="vercel-card overflow-hidden">
                     <div className="px-8 py-6 border-b border-[#eaeaea]">
-                        <h2 className="text-xl font-bold">Slack Messaging</h2>
-                        <p className="text-[13px] text-[#666] mt-1">Personal and Corporate workspace configurations.</p>
+                        <h2 className="text-xl font-bold">슬랙 메시징</h2>
+                        <p className="text-[13px] text-[#666] mt-1">개인 및 기업 워크스페이스 설정입니다.</p>
                     </div>
                     <div className="px-8 py-10 space-y-12 bg-[#fafafa]">
                         {/* Personal Slack */}
                         <div>
-                            <h4 className="text-[11px] font-black text-black uppercase tracking-[.2em] border-b border-[#eaeaea] pb-2 mb-6">Personal Workspace</h4>
+                            <h4 className="text-[11px] font-black text-black uppercase tracking-[.2em] border-b border-[#eaeaea] pb-2 mb-6">개인 워크스페이스</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-2">
-                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">Bot User Token</label>
+                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">봇 유저 토큰</label>
                                     <input
                                         type="password"
                                         value={config.slackToken}
@@ -110,10 +110,10 @@ export default function Settings() {
 
                         {/* Company Slack */}
                         <div>
-                            <h4 className="text-[11px] font-black text-black uppercase tracking-[.2em] border-b border-[#eaeaea] pb-2 mb-6">Corporate Workspace</h4>
+                            <h4 className="text-[11px] font-black text-black uppercase tracking-[.2em] border-b border-[#eaeaea] pb-2 mb-6">기업 워크스페이스</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 <div className="space-y-2">
-                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">Org Token</label>
+                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">기업용 토큰</label>
                                     <input
                                         type="password"
                                         value={config.companySlackToken}
@@ -122,7 +122,7 @@ export default function Settings() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">Project Channel</label>
+                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">프로젝트 채널</label>
                                     <input
                                         type="text"
                                         value={config.projectChannelId}
@@ -131,7 +131,7 @@ export default function Settings() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">Assignee ID</label>
+                                    <label className="text-[11px] font-bold text-[#888] uppercase tracker-wider">담당자 ID</label>
                                     <input
                                         type="text"
                                         value={config.assigneeUserId}
@@ -145,13 +145,13 @@ export default function Settings() {
                     <div className="px-8 py-4 border-t border-[#eaeaea] bg-white flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-[#0070f3]" />
-                            <span className="text-[12px] text-[#888] italic">Changes are persisted to LocalStorage in real-time.</span>
+                            <span className="text-[12px] text-[#888] italic">변경 사항은 실시간으로 저장됩니다.</span>
                         </div>
                         <button
                             onClick={() => addToast('설정이 성공적으로 동기화되었습니다.')}
                             className="vercel-btn-primary"
                         >
-                            Sync Confirmation
+                            동기화 확인
                         </button>
                     </div>
                 </section>

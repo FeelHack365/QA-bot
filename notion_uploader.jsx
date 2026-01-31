@@ -118,8 +118,8 @@ export default function NotionUploader() {
     return (
         <div className="space-y-12">
             <div>
-                <h1 className="text-[32px] font-bold tracking-tighter text-black">Uploader</h1>
-                <p className="text-[#666] text-[15px]">Paste your TSV data (No, depth1, depth2, checkPoint, scenario) to automatically sync with Notion.</p>
+                <h1 className="text-[32px] font-bold tracking-tighter text-black">노션 업로드</h1>
+                <p className="text-[#666] text-[15px]">TSV 데이터(No, depth1, depth2, checkPoint, scenario)를 붙여넣어 노션과 자동으로 동기화하세요.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -128,24 +128,14 @@ export default function NotionUploader() {
                     <div className="vercel-card overflow-hidden flex flex-col">
                         <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
                             <span className="text-[13px] font-semibold text-[#666] flex items-center gap-2">
-                                <IconFile /> Raw Data Input
+                                QA 시나리오 입력
                             </span>
-                            <div className="flex items-center gap-4">
-                                <span className="text-[12px] text-[#999]">{items.length} items parsed</span>
-                                <button
-                                    onClick={handleUploadAll}
-                                    disabled={isUploading || items.length === 0}
-                                    className="vercel-btn-primary"
-                                >
-                                    {isUploading ? `Uploading ${progress}%` : 'Deploy to Notion'}
-                                </button>
-                            </div>
                         </div>
                         <textarea
                             value={rawInput}
                             onChange={(e) => setRawInput(e.target.value)}
                             className="w-full h-64 p-6 outline-none text-[13.5px] font-mono leading-relaxed"
-                            placeholder="붙여넣으세요..."
+                            placeholder="여기에 TSV 데이터를 붙여넣으세요"
                         />
                     </div>
                 </div>
@@ -154,16 +144,26 @@ export default function NotionUploader() {
                 <div className="lg:col-span-8">
                     <div className="vercel-card h-[500px] flex flex-col">
                         <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
-                            <span className="text-[13px] font-semibold text-[#666]">Queue Overview</span>
+                            <span className="text-[13px] font-semibold text-[#666]">전송 대기 목록</span>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[12px] text-[#999]">{items.length}개 항목 파싱됨</span>
+                                <button
+                                    onClick={handleUploadAll}
+                                    disabled={isUploading || items.length === 0}
+                                    className="vercel-btn-primary"
+                                >
+                                    {isUploading ? `업로드 중 ${progress}%` : '노션으로 업로드'}
+                                </button>
+                            </div>
                         </div>
                         <div className="flex-1 overflow-auto">
                             {items.length > 0 ? (
                                 <table className="w-full text-left">
                                     <thead className="sticky top-0 bg-white border-b border-[#eaeaea] z-10">
                                         <tr className="text-[11px] font-bold text-[#888] uppercase tracking-wider">
-                                            <th className="px-6 py-3 w-16 text-center">Status</th>
+                                            <th className="px-6 py-3 w-16 text-center">상태</th>
                                             <th className="px-6 py-3">No.</th>
-                                            <th className="px-6 py-3">Checkpoint</th>
+                                            <th className="px-6 py-3">확인 사항</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#eaeaea]">
@@ -187,8 +187,8 @@ export default function NotionUploader() {
 
                 <div className="lg:col-span-4">
                     <div className="vercel-card h-[500px] flex flex-col bg-black overflow-hidden shadow-2xl">
-                        <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-[#666] uppercase tracking-widest">Real-time Logs</span>
+                        <div className="px-6 py-4 border-b border-[#eaeaea] flex items-center justify-between">
+                            <span className="text-[13px] font-semibold text-[#666]">실시간 업로드 로그</span>
                             <div className="w-1.5 h-1.5 rounded-full bg-[#0070f3] animate-pulse" />
                         </div>
                         <div className="flex-1 p-6 font-mono text-[11.5px] leading-6 overflow-auto text-[#888]">
@@ -199,7 +199,7 @@ export default function NotionUploader() {
                                 </div>
                             ))}
                             {logs.length === 0 && (
-                                <div className="h-full flex items-center justify-center opacity-20 tracking-widest text-white">READY...</div>
+                                <div className="h-full flex items-center justify-center opacity-20 tracking-widest text-white">준비됨...</div>
                             )}
                         </div>
                     </div>

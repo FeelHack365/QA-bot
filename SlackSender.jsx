@@ -231,7 +231,6 @@ export default function SlackSender() {
                         </div>
                         <div className="flex gap-4">
                             <button onClick={loadFailItems} disabled={loading} className="vercel-btn-secondary">FAIL 항목 불러오기</button>
-                            <button onClick={handleSend} disabled={loading || failItems.length === 0} className="vercel-btn-primary">슬랙 전송 실행하기</button>
                         </div>
                     </div>
                 </div>
@@ -240,6 +239,7 @@ export default function SlackSender() {
                     <div className="vercel-card h-[500px] flex flex-col">
                         <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
                             <span className="text-[13px] font-semibold text-[#666]">전송할 항목 대기중</span>
+                            <button onClick={handleSend} disabled={loading || failItems.length === 0} className="vercel-btn-primary">슬랙 전송 실행하기</button>
                         </div>
                         <div className="flex-1 overflow-auto">
                             {failItems.length > 0 ? (
