@@ -132,6 +132,7 @@ export default function NotionUploader() {
         setIsUploading(false);
         setRawInput('');
         setItems([]);
+        setLogs([]);
         alert('🎉 모든 작업이 완료되었습니다.');
     };
 
