@@ -130,6 +130,8 @@ export default function NotionUploader() {
             await new Promise(r => setTimeout(r, 400));
         }
         setIsUploading(false);
+        setRawInput('');
+        alert('🎉 모든 작업이 완료되었습니다.');
     };
 
     return (
