@@ -36,26 +36,20 @@ export default function App() {
                                 </svg>
                                 <span className="h-6 w-px bg-[#eaeaea] mx-2" />
                                 <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-sm">sua-park</span>
-                                    <span className="text-[#999] text-xs px-1.5 py-0.5 bg-[#fafafa] border border-[#eaeaea] rounded uppercase font-bold tracking-tight">Hobby</span>
-                                    <span className="text-[#999] text-sm">/</span>
-                                    <span className="font-semibold text-sm">qa-bot-pro</span>
+                                    <span className="font-semibold text-sm">QA-bot-alina</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <button className="text-[13px] text-[#666] hover:text-black transition-colors font-medium">Feedback</button>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-400 to-rose-400 border border-white shadow-sm" />
-                        </div>
+
                     </div>
 
                     {/* Vercel Sub-nav Tabs */}
                     <div className="max-w-[1250px] mx-auto px-6">
                         <nav className="flex items-center gap-8 -mb-px overflow-x-auto no-scrollbar">
                             {[
-                                { id: 'uploader', label: 'Notion Uploader' },
-                                { id: 'slack', label: 'Slack Forwarding' },
-                                { id: 'settings', label: 'Settings' }
+                                { id: 'uploader', label: '노션 업로드' },
+                                { id: 'slack', label: '슬랙 전송' },
+                                { id: 'settings', label: '설정' }
                             ].map(tab => (
                                 <button
                                     key={tab.id}

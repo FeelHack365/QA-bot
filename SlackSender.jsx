@@ -92,7 +92,7 @@ export default function SlackSender() {
         try {
             const items = await fetchFailItems();
             setFailItems(items);
-            if (items.length === 0) addToast('📭 전송할 FAIL 항목이 없습니다.');
+            if (items.length === 0) addToast('불러올 FAIL 항목이 없어요.');
         } catch (err) {
             addToast(`❌ 오류: ${err.message}`, 'error');
         } finally {
@@ -214,12 +214,12 @@ export default function SlackSender() {
         <div className="space-y-12">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-[32px] font-bold tracking-tighter text-black">Slack Forwarding</h1>
-                    <p className="text-[#666] text-[15px]">Select and dispatch FAIL items from Notion to project channels.</p>
+                    <h1 className="text-[32px] font-bold tracking-tighter text-black">슬랙 전송</h1>
+                    <p className="text-[#666] text-[15px]">노션DB에서 FAIL 항목의 제목, 본문(한글), 본문(영문)을 지정한 슬랙 채널에 전송합니다.</p>
                 </div>
                 <div className="flex border border-[#eaeaea] rounded-md overflow-hidden bg-[#fafafa]">
-                    <button onClick={() => setUseCompanySlack(false)} className={`px-4 py-1.5 text-xs font-semibold transition-all ${!useCompanySlack ? 'bg-white shadow-sm text-black' : 'text-[#888]'}`}>Personal</button>
-                    <button onClick={() => setUseCompanySlack(true)} className={`px-4 py-1.5 text-xs font-semibold transition-all ${useCompanySlack ? 'bg-black text-white' : 'text-[#888]'}`}>Company</button>
+                    <button onClick={() => setUseCompanySlack(false)} className={`px-4 py-1.5 text-xs font-semibold transition-all ${!useCompanySlack ? 'bg-white shadow-sm text-black' : 'text-[#888]'}`}>개인계정</button>
+                    <button onClick={() => setUseCompanySlack(true)} className={`px-4 py-1.5 text-xs font-semibold transition-all ${useCompanySlack ? 'bg-black text-white' : 'text-[#888]'}`}>회사계정</button>
                 </div>
             </div>
 
@@ -227,12 +227,11 @@ export default function SlackSender() {
                 <div className="lg:col-span-12">
                     <div className="vercel-card bg-[#fafafa] p-8 flex items-center justify-between border-dashed border-2">
                         <div className="space-y-1">
-                            <span className="text-[11px] font-bold text-[#999] tracking-widest uppercase">Action Center</span>
-                            <h3 className="text-xl font-bold">{failItems.length} items staged for broadcast</h3>
+                            <h3 className="text-xl font-bold">FAIL 항목: {failItems.length} 개</h3>
                         </div>
                         <div className="flex gap-4">
-                            <button onClick={loadFailItems} disabled={loading} className="vercel-btn-secondary">Load FAIL Items</button>
-                            <button onClick={handleSend} disabled={loading || failItems.length === 0} className="vercel-btn-primary">Execute Dispatch</button>
+                            <button onClick={loadFailItems} disabled={loading} className="vercel-btn-secondary">FAIL 항목 불러오기</button>
+                            <button onClick={handleSend} disabled={loading || failItems.length === 0} className="vercel-btn-primary">슬랙 전송 실행하기</button>
                         </div>
                     </div>
                 </div>
@@ -240,8 +239,7 @@ export default function SlackSender() {
                 <div className="lg:col-span-7">
                     <div className="vercel-card h-[500px] flex flex-col">
                         <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
-                            <span className="text-[13px] font-semibold text-[#666]">Dispatch Queue</span>
-                            <IconSlack />
+                            <span className="text-[13px] font-semibold text-[#666]">전송할 항목 대기중</span>
                         </div>
                         <div className="flex-1 overflow-auto">
                             {failItems.length > 0 ? (
@@ -270,8 +268,8 @@ export default function SlackSender() {
 
                 <div className="lg:col-span-5">
                     <div className="vercel-card h-[500px] bg-black flex flex-col overflow-hidden shadow-2xl">
-                        <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-[#666] uppercase tracking-[.3em]">Transmission Stream</span>
+                        <div className="px-6 py-4 border-b border-[#eaeaea] flex items-center justify-between">
+                            <span className="text-[13px] font-semibold text-[#666]">실시간 전송 로그</span>
                             <div className="w-1.5 h-1.5 rounded-full bg-[#0070f3] animate-pulse" />
                         </div>
                         <div className="flex-1 p-6 font-mono text-[11px] leading-6 overflow-auto text-[#888] selection:bg-white selection:text-black">
