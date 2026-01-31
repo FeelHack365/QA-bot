@@ -14,6 +14,11 @@ export default defineConfig({
                 target: 'https://api.notion.com',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/notion-api/, ''),
+            },
+            '/slack-api': {
+                target: 'https://slack.com',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/slack-api/, ''),
             }
         }
     }
