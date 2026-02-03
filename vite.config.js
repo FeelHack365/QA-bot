@@ -19,6 +19,11 @@ export default defineConfig({
                 target: 'https://slack.com/api',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/slack-api/, ''),
+            },
+            '/translate-api': {
+                target: 'https://api-free.deepl.com',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/translate-api/, ''),
             }
         }
     }

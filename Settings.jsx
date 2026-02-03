@@ -6,7 +6,8 @@ export default function Settings() {
     const [config, setConfig] = useState({
         token: '', databaseId: '',
         slackToken: '', channelId: '',
-        companySlackToken: '', projectChannelId: '', assigneeUserId: ''
+        companySlackToken: '', projectChannelId: '', assigneeUserId: '',
+        deeplApiKey: ''
     });
 
     useEffect(() => {
@@ -25,7 +26,8 @@ export default function Settings() {
             channelId: savedChannelId || '',
             companySlackToken: savedCompanySlackToken || '',
             projectChannelId: savedProjectChannelId || '',
-            assigneeUserId: savedAssigneeUserId || ''
+            assigneeUserId: savedAssigneeUserId || '',
+            deeplApiKey: localStorage.getItem('deeplApiKey') || ''
         });
     }, []);
 
@@ -72,6 +74,29 @@ export default function Settings() {
                                     className="w-full px-4 py-2 border border-[#eaeaea] focus:border-black rounded-md text-[14px] font-mono outline-none transition-all shadow-sm"
                                 />
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* DeepL Section */}
+                <section className="vercel-card overflow-hidden">
+                    <div className="px-8 py-6 border-b border-[#eaeaea]">
+                        <h2 className="text-xl font-bold">DeepL 번역 연동</h2>
+                        <p className="text-[13px] text-[#666] mt-1">자동 번역을 위한 DeepL API 키를 설정합니다.</p>
+                    </div>
+                    <div className="px-8 py-10 space-y-8 bg-[#fafafa]">
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">DeepL API Key</label>
+                            <input
+                                type="password"
+                                value={config.deeplApiKey}
+                                onChange={(e) => handleChange('deeplApiKey', e.target.value)}
+                                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx"
+                                className="w-full px-4 py-2 border border-[#eaeaea] focus:border-black rounded-md text-[14px] font-mono outline-none transition-all shadow-sm"
+                            />
+                            <p className="text-[12px] text-[#888] mt-2">
+                                <a href="https://www.deepl.com/pro-api" target="_blank" rel="noopener noreferrer" className="text-[#0070f3] hover:underline">DeepL API Key 받기 →</a>
+                            </p>
                         </div>
                     </div>
                 </section>

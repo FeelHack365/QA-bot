@@ -40,35 +40,48 @@ export default function SlackSender() {
         if (savedAssigneeUserId) setAssigneeUserId(savedAssigneeUserId);
     }, []);
 
-    // Original Logic: API 페치
-    const fetchFailItems = async () => {
-        const url = window.location.hostname === 'localhost'
-            ? `/notion-api/v1/databases/${databaseId.trim()}/query`
-            : `/notion-api/v1/databases/${databaseId.trim()}/query`;
+    // Notion API Call Helper
+    const callNotionApi = async (path, method, body) => {
+        const isLocal = window.location.hostname === 'localhost';
+        const apiPath = isLocal ? `/notion-api${path}` : '/api/notion';
 
-        const response = await fetch(url, {
-            method: 'POST',
+        const options = isLocal ? {
+            method: method,
             headers: {
                 'Authorization': `Bearer ${notionToken.trim()}`,
                 'Content-Type': 'application/json',
                 'Notion-Version': '2022-06-28'
             },
+            body: body ? JSON.stringify(body) : undefined
+        } : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                filter: {
-                    and: [
-                        { property: '결과', select: { equals: 'FAIL' } },
-                        { property: '전송 상태', select: { equals: '미전송' } }
-                    ]
-                }
+                token: notionToken.trim(),
+                path: path,
+                method: method,
+                body: body
             })
+        };
+
+        const response = await fetch(apiPath, options);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Notion API 오류');
+        return data;
+    };
+
+    // Original Logic: API 페치
+    const fetchFailItems = async () => {
+        const dbId = databaseId.trim().replace(/-/g, '');
+        const data = await callNotionApi(`/v1/databases/${dbId}/query`, 'POST', {
+            filter: {
+                and: [
+                    { property: '결과', select: { equals: 'FAIL' } },
+                    { property: '전송 상태', select: { equals: '미전송' } }
+                ]
+            }
         });
 
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.message || 'Notion API 오류');
-        }
-
-        const data = await response.json();
         return data.results.map(page => ({
             id: page.id,
             no: page.properties['No.']?.title?.[0]?.text?.content || '',
@@ -175,7 +188,10 @@ export default function SlackSender() {
     const handleSend = async () => {
         setLoading(true); setResults([]);
         try {
+            let successCount = 0;
+            let failCount = 0;
             const sendResults = [];
+
             for (let i = 0; i < failItems.length; i++) {
                 const item = failItems[i];
                 try {
@@ -183,26 +199,25 @@ export default function SlackSender() {
                     else await sendToPersonalSlack(item);
 
                     // Notion 업데이트
-                    const updateUrl = window.location.hostname === 'localhost' ? `/notion-api/v1/pages/${item.id}` : `/api/notion/patch?pageId=${item.id}`;
-                    await fetch(updateUrl, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `Bearer ${notionToken}`,
-                            'Content-Type': 'application/json',
-                            'Notion-Version': '2022-06-28'
-                        },
-                        body: JSON.stringify({ properties: { '전송 상태': { select: { name: '전송완료' } } } })
+                    await callNotionApi(`/v1/pages/${item.id}`, 'PATCH', {
+                        properties: { '전송 상태': { select: { name: '전송완료' } } }
                     });
 
                     sendResults.push(`✅ [${item.no}] 전송 완료`);
+                    successCount++;
                 } catch (err) {
                     sendResults.push(`❌ [${item.no}] 실패: ${err.message}`);
+                    failCount++;
                 }
                 setResults([...sendResults]);
                 await new Promise(r => setTimeout(r, 800));
             }
             setFailItems([]);
-            addToast('🎉 모든 전송 작업이 완료되었습니다.');
+            if (failCount === 0) {
+                addToast(`🎉 모든 전송 작업이 완료되었습니다. (${successCount}건)`);
+            } else {
+                addToast(`⚠️ 전송 완료 (성공: ${successCount}, 실패: ${failCount})`, 'error');
+            }
         } catch (err) {
             addToast(`❌ 치명적 오류: ${err.message}`, 'error');
         } finally {

@@ -48,41 +48,44 @@ export default function NotionUploader() {
     const createNotionPage = async (item) => {
         const cleanToken = config.token.trim();
         const cleanDbId = config.databaseId.trim().replace(/-/g, '');
-        const apiPath = window.location.hostname === 'localhost' ? '/notion-api/v1/pages' : '/api/notion';
+        const isLocal = window.location.hostname === 'localhost';
+        const apiPath = isLocal ? '/notion-api/v1/pages' : '/api/notion';
 
-        const payload = {
-            token: cleanToken,
-            body: {
-                parent: { type: 'database_id', database_id: cleanDbId },
-                properties: {
-                    'No.': { title: [{ text: { content: item.no || '-' } }] },
-                    '1 Depth 화면': { select: { name: item.depth1 || 'N/A' } },
-                    '2 Depth 영역': { rich_text: [{ text: { content: item.depth2 || '' } }] },
-                    '확인 사항': { rich_text: [{ text: { content: item.checkPoint || '' } }] },
-                    '시나리오': { rich_text: [{ text: { content: item.scenario || '' } }] },
-                    '결과': { select: { name: 'PENDING' } },
-                    '전송 상태': { select: { name: '미전송' } }
-                }
+        const notionBody = {
+            parent: { type: 'database_id', database_id: cleanDbId },
+            properties: {
+                'No.': { title: [{ text: { content: item.no || '-' } }] },
+                '1 Depth 화면': { select: { name: item.depth1 || 'N/A' } },
+                '2 Depth 영역': { rich_text: [{ text: { content: item.depth2 || '' } }] },
+                '확인 사항': { rich_text: [{ text: { content: item.checkPoint || '' } }] },
+                '시나리오': { rich_text: [{ text: { content: item.scenario || '' } }] },
+                '결과': { select: { name: 'PENDING' } },
+                '전송 상태': { select: { name: '미전송' } }
             }
         };
 
-        const fetchOptions = window.location.hostname === 'localhost' ? {
+        const fetchOptions = isLocal ? {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${cleanToken}`,
                 'Content-Type': 'application/json',
                 'Notion-Version': '2022-06-28'
             },
-            body: JSON.stringify(payload.body)
+            body: JSON.stringify(notionBody)
         } : {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                token: cleanToken,
+                path: '/v1/pages',
+                method: 'POST',
+                body: notionBody
+            })
         };
 
         const response = await fetch(apiPath, fetchOptions);
         const data = await response.json();
-        if (!response.ok) throw new Error(`${data.code || 'Error'}: ${data.message || 'Unknown error'}`);
+        if (!response.ok) throw new Error(`${data.code || data.message || 'Error'}: ${data.message || 'Unknown error'}`);
         return data;
     };
 
@@ -93,6 +96,8 @@ export default function NotionUploader() {
         }
         setIsUploading(true); setLogs([]); setProgress(0);
         const updatedItems = [...items];
+        let successCount = 0;
+        let failCount = 0;
 
         for (let i = 0; i < updatedItems.length; i++) {
             const item = updatedItems[i];
@@ -102,24 +107,31 @@ export default function NotionUploader() {
                 await createNotionPage(item);
                 updatedItems[i].status = 'success';
                 setLogs(prev => [`✅ [${item.no}] 성공`, ...prev]);
+                successCount++;
             } catch (err) {
                 updatedItems[i].status = 'error';
                 setLogs(prev => [`❌ [${item.no}] 실패: ${err.message}`, ...prev]);
+                failCount++;
             }
             setProgress(Math.round(((i + 1) / updatedItems.length) * 100));
             setItems([...updatedItems]);
             await new Promise(r => setTimeout(r, 400));
         }
         setIsUploading(false);
-        addToast(`🎉 ${items.length}개 업로드 완료!`);
-        setRawInput(''); setItems([]);
+
+        if (failCount === 0) {
+            addToast(`🎉 ${successCount}개 업로드 완료!`);
+            setRawInput(''); setItems([]);
+        } else {
+            addToast(`⚠️ 업로드 완료 (성공: ${successCount}, 실패: ${failCount})`, 'error');
+        }
     };
 
     return (
         <div className="space-y-12">
             <div>
                 <h1 className="text-[32px] font-bold tracking-tighter text-black">노션 업로드</h1>
-                <p className="text-[#666] text-[15px]">TSV 데이터(No, depth1, depth2, checkPoint, scenario)를 붙여넣어 노션과 자동으로 동기화하세요.</p>
+                <p className="text-[#666] text-[15px]">TSV 데이터를 붙여넣어 노션에 업로드하세요.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -163,6 +175,7 @@ export default function NotionUploader() {
                                         <tr className="text-[11px] font-bold text-[#888] uppercase tracking-wider">
                                             <th className="px-6 py-3 w-16 text-center">상태</th>
                                             <th className="px-6 py-3">No.</th>
+                                            <th className="px-6 py-3">1Depth</th>
                                             <th className="px-6 py-3">확인 사항</th>
                                         </tr>
                                     </thead>
@@ -173,6 +186,7 @@ export default function NotionUploader() {
                                                     {item.status === 'success' ? <IconCheck /> : item.status === 'error' ? <IconX /> : item.status === 'uploading' ? '...' : '-'}
                                                 </td>
                                                 <td className="px-6 py-4 font-bold">{item.no}</td>
+                                                <td className="px-6 py-4 text-[#666] truncate max-w-[300px]">{item.depth1}</td>
                                                 <td className="px-6 py-4 text-[#666] truncate max-w-[300px]">{item.checkPoint}</td>
                                             </tr>
                                         ))}
@@ -195,7 +209,7 @@ export default function NotionUploader() {
                             {logs.map((log, i) => (
                                 <div key={i} className="mb-1 flex gap-4 transition-all animate-in fade-in slide-in-from-left-2">
                                     <span className="text-[#333] select-none">[{items.length - i}]</span>
-                                    <span className={log.includes('성공') ? 'text-white' : 'text-[#ee0000]'}>{log}</span>
+                                    <span className={log.includes('성공') ? 'text-[#0070f3]' : 'text-[#ee0000]'}>{log}</span>
                                 </div>
                             ))}
                             {logs.length === 0 && (
