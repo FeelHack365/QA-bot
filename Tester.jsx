@@ -28,11 +28,16 @@ export default function Tester() {
     });
 
     useEffect(() => {
-        setSettings({
-            notionToken: localStorage.getItem('notion_token') || '',
-            databaseId: localStorage.getItem('notion_database_id') || '',
-            deeplApiKey: localStorage.getItem('deeplApiKey') || ''
-        });
+        const loadSettings = () => {
+            setSettings({
+                notionToken: localStorage.getItem('notion_token') || '',
+                databaseId: localStorage.getItem('notion_database_id') || '',
+                deeplApiKey: localStorage.getItem('deeplApiKey') || ''
+            });
+        };
+        loadSettings();
+        window.addEventListener('storage', loadSettings);
+        return () => window.removeEventListener('storage', loadSettings);
     }, []);
 
     // Notion API Call Helper
@@ -190,6 +195,17 @@ export default function Tester() {
         }
     };
 
+    const handleSkip = () => {
+        if (testItems.length <= 1) return;
+
+        const newItems = [...testItems];
+        const currentItem = newItems.splice(currentIndex, 1)[0];
+        newItems.push(currentItem);
+
+        setTestItems(newItems);
+        addToast(`[${currentItem.no}] 항목을 맨 뒤로 보냈습니다.`);
+    };
+
     const moveToNext = () => {
         if (currentIndex < testItems.length - 1) {
             setCurrentIndex(prev => prev + 1);
@@ -206,54 +222,50 @@ export default function Tester() {
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-[32px] font-bold tracking-tighter text-black flex items-center gap-3">
-                        <IconFlask /> 테스트 진행
+                        테스트 진행
                     </h1>
                     <p className="text-[#666] text-[15px]">PENDING 상태의 항목을 불러와 하나씩 테스트하고 결과를 기록합니다.</p>
                 </div>
                 <button onClick={loadPendingItems} disabled={loading} className="vercel-btn-secondary">
-                    {loading ? '불러오는 중...' : '🔄 PENDING 항목 불러오기'}
+                    {loading ? '불러오는 중...' : 'PENDING 항목 불러오기'}
                 </button>
             </div>
 
             {testItems.length > 0 ? (
                 <div className="max-w-[700px] mx-auto">
-                    {/* Progress */}
-                    <div className="mb-6 flex items-center justify-between text-[13px]">
-                        <span className="font-bold text-[#0070f3]">{currentIndex + 1} / {testItems.length}</span>
-                        <span className="text-[#999]">{Math.round(((currentIndex + 1) / testItems.length) * 100)}% 완료</span>
-                    </div>
-                    <div className="h-1 bg-[#eaeaea] rounded-full overflow-hidden mb-8">
-                        <div
-                            className="h-full bg-[#0070f3] transition-all duration-500"
-                            style={{ width: `${((currentIndex + 1) / testItems.length) * 100}%` }}
-                        />
+                    {/* Progress Count */}
+                    <div className="mb-2 flex justify-end">
+                        <span className="text-[12px] font-medium text-[#999] tracking-tight">{currentIndex + 1} / {testItems.length}</span>
                     </div>
 
                     {/* Test Card */}
                     <div className="vercel-card overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
                         <div className="px-8 py-6 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
                             <span className="text-xl font-black">{currentItem.no}</span>
-                            <span className="text-[12px] px-3 py-1 bg-black text-white rounded-full font-bold uppercase tracking-widest">Testing</span>
+                            <button
+                                onClick={handleSkip}
+                                className="text-[12px] px-4 py-1.5 bg-white border border-[#eaeaea] text-[#666] hover:text-black hover:border-black rounded-full font-bold uppercase tracking-widest transition-all shadow-sm"
+                            >
+                                Skip
+                            </button>
                         </div>
 
                         <div className="p-10 space-y-8">
                             <div>
                                 <label className="text-[11px] font-bold text-[#888] uppercase tracking-[.2em] block mb-3">Context</label>
-                                <div className="text-lg font-bold text-black leading-tight">
-                                    {currentItem.depth1} <span className="text-[#eaeaea] mx-2">/</span> {currentItem.depth2}
+                                <div className="text-lg font-bold text-black leading-snug">
+                                    {currentItem.depth1}
+                                    <span className="text-[#eaeaea] mx-2">/</span>
+                                    {currentItem.depth2}
+                                    <span className="text-[#eaeaea] mx-2">/</span>
+                                    {currentItem.checkPoint}
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 gap-8">
                                 <div>
-                                    <label className="text-[11px] font-bold text-[#888] uppercase tracking-[.2em] block mb-3">Check Point</label>
-                                    <p className="text-[16px] leading-relaxed text-[#333] font-medium bg-[#fcfcfc] p-4 rounded-lg border border-[#f0f0f0]">
-                                        {currentItem.checkPoint}
-                                    </p>
-                                </div>
-                                <div>
                                     <label className="text-[11px] font-bold text-[#888] uppercase tracking-[.2em] block mb-3">Scenario</label>
-                                    <p className="text-[16px] leading-relaxed text-[#666] italic">
+                                    <p className="text-[16px] leading-relaxed text-[#666] bg-[#fafafa] p-5 rounded-lg border border-[#f0f0f0]">
                                         {currentItem.scenario}
                                     </p>
                                 </div>
@@ -282,9 +294,7 @@ export default function Tester() {
                 </div>
             ) : (
                 <div className="vercel-card h-[400px] flex flex-col items-center justify-center border-dashed border-2 opacity-60">
-                    <div className="w-16 h-16 rounded-full bg-[#fafafa] flex items-center justify-center mb-6 text-[#999]">
-                        <IconFlask />
-                    </div>
+
                     <p className="text-lg font-bold text-black mb-2">테스트 준비 완료</p>
                     <p className="text-[#666] text-sm">상단 버튼을 눌러 작업을 시작하세요.</p>
                 </div>
@@ -294,16 +304,16 @@ export default function Tester() {
             {showFailModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-200">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !isProcessing && setShowFailModal(false)} />
-                    <div className="vercel-card w-full max-w-[500px] bg-white relative shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+                    <div className="bg-white rounded-lg w-full max-w-[500px] relative shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
                         <div className="px-8 py-6 border-b border-[#eaeaea] bg-black text-white flex items-center justify-between">
-                            <h3 className="text-lg font-bold">❌ FAIL 상세 정보 기록</h3>
+                            <h3 className="text-lg font-bold">FAIL 상세 정보 기록</h3>
                             <button onClick={() => setShowFailModal(false)} className="opacity-60 hover:opacity-100">
                                 <IconX width="20" height="20" />
                             </button>
                         </div>
                         <div className="p-8 space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">버그 제목 (필수)</label>
+                                <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">제목</label>
                                 <input
                                     type="text"
                                     value={failForm.title}
@@ -314,7 +324,7 @@ export default function Tester() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">상세 내용 (한글)</label>
+                                <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">상세 내용</label>
                                 <textarea
                                     value={failForm.bodyKr}
                                     onChange={(e) => setFailForm({ ...failForm, bodyKr: e.target.value })}
@@ -324,7 +334,7 @@ export default function Tester() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">이미지 URL</label>
+                                <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">이미지 URL(선택)</label>
                                 <input
                                     type="text"
                                     value={failForm.imageUrl}
@@ -348,8 +358,8 @@ export default function Tester() {
                                 disabled={isProcessing}
                                 className="flex-[2] vercel-btn-primary flex items-center justify-center gap-2"
                             >
-                                {isProcessing ? <IconLoading /> : <IconFlask className="w-4 h-4" />}
-                                {isProcessing ? '처리 중...' : '🌐 번역 후 Notion 저장'}
+
+                                {isProcessing ? '처리 중...' : '번역 후 Notion 저장'}
                             </button>
                         </div>
                     </div>

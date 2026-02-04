@@ -1,43 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from './App';
 
-const IconSlack = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>;
+const IconSlack = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 10c-.83 0-1.5.67-1.5 1.5v5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-5c0-.83-.67-1.5-1.5-1.5z" /><path d="M20.5 10c-.83 0-1.5.67-1.5 1.5v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-3.5c0-.83-.67-1.5-1.5-1.5z" /><path d="M8.5 10c-.83 0-1.5.67-1.5 1.5v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-1.5c0-.83-.67-1.5-1.5-1.5z" /><path d="M2.5 10c-.83 0-1.5.67-1.5 1.5v.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-.5c0-.83-.67-1.5-1.5-1.5z" /><path d="M3 3h18c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2z" /></svg>;
+const IconCopy = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>;
+const IconCheck = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
+const IconClock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
 
 export default function SlackSender() {
     const { addToast } = useToast();
 
-    // Original Logic: 세팅 정보
+    // Notion Settings
     const [notionToken, setNotionToken] = useState('');
     const [databaseId, setDatabaseId] = useState('');
-    const [slackToken, setSlackToken] = useState('');
-    const [channelId, setChannelId] = useState('');
-    const [useCompanySlack, setUseCompanySlack] = useState(false);
-    const [companySlackToken, setCompanySlackToken] = useState('');
-    const [projectChannelId, setProjectChannelId] = useState('');
-    const [assigneeUserId, setAssigneeUserId] = useState('');
 
-    // 상태
+    // State
     const [loading, setLoading] = useState(false);
     const [failItems, setFailItems] = useState([]);
-    const [results, setResults] = useState([]);
+    const [processingId, setProcessingId] = useState(null);
 
-    // Original Logic: LocalStorage 불러오기
     useEffect(() => {
-        const savedNotionToken = localStorage.getItem('notion_token');
-        const savedDbId = localStorage.getItem('notion_database_id');
-        const savedSlackToken = localStorage.getItem('slackToken');
-        const savedChannelId = localStorage.getItem('channelId');
-        const savedCompanySlackToken = localStorage.getItem('companySlackToken');
-        const savedProjectChannelId = localStorage.getItem('projectChannelId');
-        const savedAssigneeUserId = localStorage.getItem('assigneeUserId');
-
-        if (savedNotionToken) setNotionToken(savedNotionToken);
-        if (savedDbId) setDatabaseId(savedDbId);
-        if (savedSlackToken) setSlackToken(savedSlackToken);
-        if (savedChannelId) setChannelId(savedChannelId);
-        if (savedCompanySlackToken) setCompanySlackToken(savedCompanySlackToken);
-        if (savedProjectChannelId) setProjectChannelId(savedProjectChannelId);
-        if (savedAssigneeUserId) setAssigneeUserId(savedAssigneeUserId);
+        const loadSettings = () => {
+            setNotionToken(localStorage.getItem('notion_token') || '');
+            setDatabaseId(localStorage.getItem('notion_database_id') || '');
+        };
+        loadSettings();
+        window.addEventListener('storage', loadSettings);
+        return () => window.removeEventListener('storage', loadSettings);
     }, []);
 
     // Notion API Call Helper
@@ -70,237 +58,164 @@ export default function SlackSender() {
         return data;
     };
 
-    // Original Logic: API 페치
-    const fetchFailItems = async () => {
-        const dbId = databaseId.trim().replace(/-/g, '');
-        const data = await callNotionApi(`/v1/databases/${dbId}/query`, 'POST', {
-            filter: {
-                and: [
-                    { property: '결과', select: { equals: 'FAIL' } },
-                    { property: '전송 상태', select: { equals: '미전송' } }
-                ]
-            }
-        });
-
-        return data.results.map(page => ({
-            id: page.id,
-            no: page.properties['No.']?.title?.[0]?.text?.content || '',
-            depth1: page.properties['1 Depth 화면']?.select?.name || '',
-            depth2: page.properties['2 Depth 영역']?.rich_text?.[0]?.text?.content || '',
-            checkPoint: page.properties['확인 사항']?.rich_text?.[0]?.text?.content || '',
-            scenario: page.properties['시나리오']?.rich_text?.[0]?.text?.content || '',
-            title: page.properties['제목']?.rich_text?.[0]?.text?.content || '',
-            bodyKr: page.properties['본문 (한글)']?.rich_text?.[0]?.text?.content || '',
-            bodyEn: page.properties['본문 (영문)']?.rich_text?.[0]?.text?.content || '',
-            imageUrl: page.properties['이미지 링크']?.url || ''
-        }));
-    };
-
     const loadFailItems = async () => {
         if (!notionToken || !databaseId) {
-            addToast('Notion 설정을 먼저 확인해 주세요.', 'error');
+            addToast('설정 탭에서 노션 API 토큰과 데이터베이스 ID를 확인해주세요.', 'error');
             return;
         }
-        setLoading(true); setFailItems([]);
+
+        setLoading(true);
         try {
-            const items = await fetchFailItems();
-            setFailItems(items);
-            if (items.length === 0) addToast('불러올 FAIL 항목이 없어요.');
-        } catch (err) {
-            addToast(`❌ 오류: ${err.message}`, 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const slackFetch = async (url, body, token) => {
-        const apiPath = window.location.hostname === 'localhost' ? '/slack-api/chat.postMessage' : '/api/slack';
-        const payload = window.location.hostname === 'localhost' ? body : { token, body };
-        const headers = { 'Content-Type': 'application/json' };
-        if (window.location.hostname === 'localhost') headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(apiPath, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload)
-        });
-        return response.json();
-    }
-
-    // Original Logic: 개인 슬랙 발송 (상세 블록)
-    const sendToPersonalSlack = async (item) => {
-        const message = {
-            channel: channelId,
-            text: `🚨 QA 테스트 FAIL 발생`,
-            blocks: [
-                { type: 'header', text: { type: 'plain_text', text: `🚨 ${item.title || 'QA 테스트 FAIL'}`, emoji: true } },
-                {
-                    type: 'section', fields: [
-                        { type: 'mrkdwn', text: `*No:*\n${item.no}` },
-                        { type: 'mrkdwn', text: `*화면:*\n${item.depth1} > ${item.depth2}` }
+            const dbId = databaseId.trim().replace(/-/g, '');
+            const data = await callNotionApi(`/v1/databases/${dbId}/query`, 'POST', {
+                filter: {
+                    and: [
+                        { property: '결과', select: { equals: 'FAIL' } },
+                        { property: '전송 상태', select: { equals: '미전송' } }
                     ]
                 },
-                { type: 'section', text: { type: 'mrkdwn', text: `*확인 사항:*\n${item.checkPoint}` } },
-                { type: 'section', text: { type: 'mrkdwn', text: `*시나리오:*\n${item.scenario}` } },
-                { type: 'section', text: { type: 'mrkdwn', text: `*상세내용*\n- ${item.title}\n- ${item.bodyKr || '(내용 없음)'}` } },
-                { type: 'section', text: { type: 'mrkdwn', text: `*상세내용(영문)*\n- ${item.title}\n- ${item.bodyEn || '(No description)'}` } },
-                { type: 'divider' }
-            ]
-        };
-        if (item.imageUrl) {
-            message.blocks.push({ type: 'image', image_url: item.imageUrl, alt_text: 'Screenshot' });
-        }
-        const data = await slackFetch('https://slack.com/api/chat.postMessage', message, slackToken);
-        if (!data.ok) throw new Error(data.error || 'Slack API 오류');
-        return data;
-    };
+                sorts: [{ property: 'No.', direction: 'ascending' }]
+            });
 
-    // Original Logic: 회사 슬랙 발송 (Bug Report)
-    const sendToCompanySlack = async (item) => {
-        const mainMessage = {
-            channel: projectChannelId,
-            text: `🐛 Bug Report: ${item.title || item.no}`,
-            blocks: [
-                { type: 'header', text: { type: 'plain_text', text: `🐛 ${item.title || 'Bug Report'}`, emoji: true } },
-                { type: 'section', fields: [{ type: 'mrkdwn', text: `*No:*\n${item.no}` }, { type: 'mrkdwn', text: `*Screen:*\n${item.depth1} > ${item.depth2}` }] },
-                { type: 'section', text: { type: 'mrkdwn', text: `*상세내용*\n- ${item.title}\n- ${item.bodyKr || '(내용 없음)'}` } },
-                { type: 'section', text: { type: 'mrkdwn', text: `*상세내용(영문)*\n- ${item.title}\n- ${item.bodyEn || '(No description)'}` } },
-                { type: 'divider' }
-            ]
-        };
-        if (item.imageUrl) {
-            mainMessage.blocks.push({ type: 'image', image_url: item.imageUrl, alt_text: 'Bug Screenshot' });
-        }
-        const mainData = await slackFetch('https://slack.com/api/chat.postMessage', mainMessage, companySlackToken);
-        if (!mainData.ok) throw new Error(mainData.error || 'Slack API 오류');
+            const items = data.results.map(page => ({
+                id: page.id,
+                no: page.properties['No.']?.title?.[0]?.text?.content || '-',
+                title: page.properties['제목']?.rich_text?.[0]?.text?.content || '',
+                bodyKr: page.properties['본문 (한글)']?.rich_text?.[0]?.text?.content || '',
+                bodyEn: page.properties['본문 (영문)']?.rich_text?.[0]?.text?.content || '',
+                imageUrl: page.properties['이미지 링크']?.url || ''
+            }));
 
-        if (assigneeUserId) {
-            const threadMessage = {
-                channel: projectChannelId,
-                thread_ts: mainData.ts,
-                text: `<@${assigneeUserId}> 이 이슈를 확인해주세요.`
-            };
-            await slackFetch('https://slack.com/api/chat.postMessage', threadMessage, companySlackToken);
-        }
-        return mainData;
-    };
-
-    const handleSend = async () => {
-        setLoading(true); setResults([]);
-        try {
-            let successCount = 0;
-            let failCount = 0;
-            const sendResults = [];
-
-            for (let i = 0; i < failItems.length; i++) {
-                const item = failItems[i];
-                try {
-                    if (useCompanySlack) await sendToCompanySlack(item);
-                    else await sendToPersonalSlack(item);
-
-                    // Notion 업데이트
-                    await callNotionApi(`/v1/pages/${item.id}`, 'PATCH', {
-                        properties: { '전송 상태': { select: { name: '전송완료' } } }
-                    });
-
-                    sendResults.push(`✅ [${item.no}] 전송 완료`);
-                    successCount++;
-                } catch (err) {
-                    sendResults.push(`❌ [${item.no}] 실패: ${err.message}`);
-                    failCount++;
-                }
-                setResults([...sendResults]);
-                await new Promise(r => setTimeout(r, 800));
-            }
-            setFailItems([]);
-            if (failCount === 0) {
-                addToast(`🎉 모든 전송 작업이 완료되었습니다. (${successCount}건)`);
-            } else {
-                addToast(`⚠️ 전송 완료 (성공: ${successCount}, 실패: ${failCount})`, 'error');
-            }
+            setFailItems(items);
+            if (items.length === 0) addToast('전송 대기 중인 FAIL 항목이 없습니다.', 'success');
+            else addToast(`✅ ${items.length}개의 FAIL 항목을 불러왔습니다.`);
         } catch (err) {
-            addToast(`❌ 치명적 오류: ${err.message}`, 'error');
+            addToast(`오류: ${err.message}`, 'error');
         } finally {
             setLoading(false);
         }
+    };
+
+    const updateStatus = async (item, status) => {
+        setProcessingId(item.id);
+        try {
+            await callNotionApi(`/v1/pages/${item.id}`, 'PATCH', {
+                properties: {
+                    '전송 상태': { select: { name: status } }
+                }
+            });
+            addToast(`[${item.no}] ${status} 처리 완료`);
+            setFailItems(prev => prev.filter(i => i.id !== item.id));
+        } catch (err) {
+            addToast(`오류: ${err.message}`, 'error');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const copyToClipboard = (item) => {
+        const text = `${item.title}\n${item.bodyKr}\n---\n${item.bodyEn}${item.imageUrl ? `\n\nImage: ${item.imageUrl}` : ''}`;
+        navigator.clipboard.writeText(text).then(() => {
+            addToast(`[${item.no}] 클립보드에 복사되었습니다.`);
+        });
     };
 
     return (
         <div className="space-y-12">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-[32px] font-bold tracking-tighter text-black">슬랙 전송</h1>
-                    <p className="text-[#666] text-[15px]">노션DB에서 FAIL 항목의 제목, 본문(한글), 본문(영문)을 지정한 슬랙 채널에 전송합니다.</p>
+                    <h1 className="text-[32px] font-bold tracking-tighter text-black flex items-center gap-3">
+                        슬랙 게시
+                    </h1>
+                    <p className="text-[#666] text-[15px]">FAIL 항목을 형식에 맞춰 복사하고 ConsoleQA에 업데이트 했는지를 표시합니다.</p>
                 </div>
-                <div className="flex border border-[#eaeaea] rounded-md overflow-hidden bg-[#fafafa]">
-                    <button onClick={() => setUseCompanySlack(false)} className={`px-4 py-1.5 text-xs font-semibold transition-all ${!useCompanySlack ? 'bg-white shadow-sm text-black' : 'text-[#888]'}`}>개인계정</button>
-                    <button onClick={() => setUseCompanySlack(true)} className={`px-4 py-1.5 text-xs font-semibold transition-all ${useCompanySlack ? 'bg-black text-white' : 'text-[#888]'}`}>회사계정</button>
-                </div>
+                <button
+                    onClick={loadFailItems}
+                    disabled={loading}
+                    className="vercel-btn-secondary"
+                >
+                    {loading ? '불러오는 중' : 'FAIL 항목 불러오기'}
+                </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-12">
-                    <div className="vercel-card bg-[#fafafa] p-8 flex items-center justify-between border-dashed border-2">
-                        <div className="space-y-1">
-                            <h3 className="text-xl font-bold">FAIL 항목: {failItems.length} 개</h3>
-                        </div>
-                        <div className="flex gap-4">
-                            <button onClick={loadFailItems} disabled={loading} className="vercel-btn-secondary">FAIL 항목 불러오기</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-7">
-                    <div className="vercel-card h-[500px] flex flex-col">
-                        <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
-                            <span className="text-[13px] font-semibold text-[#666]">전송할 항목 대기중</span>
-                            <button onClick={handleSend} disabled={loading || failItems.length === 0} className="vercel-btn-primary">슬랙 전송 실행하기</button>
-                        </div>
-                        <div className="flex-1 overflow-auto">
-                            {failItems.length > 0 ? (
-                                <table className="w-full text-left">
-                                    <thead className="sticky top-0 bg-white border-b border-[#eaeaea] z-10 text-[11px] font-bold text-[#999] uppercase tracking-wider">
-                                        <tr><th className="px-6 py-3">ID</th><th className="px-6 py-3">Context</th><th className="px-6 py-3">Summary</th></tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-[#eaeaea]">
-                                        {failItems.map(item => (
-                                            <tr key={item.id} className="text-[13.5px] hover:bg-[#fafafa] transition-colors">
-                                                <td className="px-6 py-4 font-bold">{item.no}</td>
-                                                <td className="px-6 py-4 text-[#666]">{item.depth1} &gt; {item.depth2}</td>
-                                                <td className="px-6 py-4 text-[#888] truncate max-w-[200px]">{item.title || item.checkPoint}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center opacity-40">
-                                    <p className="mt-2 text-sm font-bold">대기 중인 항목이 없습니다.</p>
+            {failItems.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6">
+                    {failItems.map((item) => (
+                        <div key={item.id} className="vercel-card overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+                            <div className="px-6 py-4 border-b border-[#eaeaea] bg-[#fafafa] flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[14px] font-medium text-[#888]">No.</span>
+                                    <span className="text-[16px] font-bold text-black">{item.no}</span>
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-5">
-                    <div className="vercel-card h-[500px] bg-black flex flex-col overflow-hidden shadow-2xl">
-                        <div className="px-6 py-4 border-b border-[#eaeaea] flex items-center justify-between">
-                            <span className="text-[13px] font-semibold text-[#666]">실시간 전송 로그</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#0070f3] animate-pulse" />
-                        </div>
-                        <div className="flex-1 p-6 font-mono text-[11px] leading-6 overflow-auto text-[#888] selection:bg-white selection:text-black">
-                            {results.map((l, i) => (
-                                <div key={i} className="mb-1 flex gap-4 animate-in fade-in">
-                                    <span className="text-[#333]">[{results.length - i}]</span>
-                                    <span className={l.includes('완료') ? 'text-white' : 'text-[#ee0000]'}>{l}</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => copyToClipboard(item)}
+                                        className="h-8 px-3 flex items-center gap-2 text-[12px] font-medium bg-white border border-[#eaeaea] hover:border-black rounded-md transition-all"
+                                    >
+                                        <IconCopy /> 복사하기
+                                    </button>
+                                    <button
+                                        onClick={() => updateStatus(item, '전송완료')}
+                                        disabled={!!processingId}
+                                        className="h-8 px-3 flex items-center gap-2 text-[12px] font-medium bg-white border border-[#eaeaea] hover:border-black rounded-md transition-all"
+                                    >
+                                        <IconCheck /> 전송완료
+                                    </button>
+                                    <button
+                                        onClick={() => updateStatus(item, '보류')}
+                                        disabled={!!processingId}
+                                        className="h-8 px-3 flex items-center gap-2 text-[12px] font-medium bg-white border border-[#eaeaea] hover:border-black rounded-md transition-all"
+                                    >
+                                        <IconClock /> 보류
+                                    </button>
                                 </div>
-                            ))}
-                            {results.length === 0 && (
-                                <div className="h-full flex items-center justify-center opacity-20 tracking-[.3em] text-white">IDLE</div>
-                            )}
+                            </div>
+
+                            <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                                {/* Left Column: Title + Body (KR) */}
+                                <div className="flex flex-col gap-6">
+                                    <div className="flex-none">
+                                        <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest block mb-2">제목</label>
+                                        <div className="text-[15px] font-bold text-black bg-[#fcfcfc] p-3 rounded border border-[#f0f0f0]">
+                                            {item.title || '(제목 없음)'}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex flex-col">
+                                        <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest block mb-2">본문 (한글)</label>
+                                        <div className="flex-1 text-[14px] leading-relaxed text-[#444] whitespace-pre-wrap bg-[#fcfcfc] p-4 rounded border border-[#f0f0f0] min-h-[120px]">
+                                            {item.bodyKr || '(내용 없음)'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Body (EN) + Image */}
+                                <div className="flex flex-col h-full">
+                                    <div className="flex-1 flex flex-col">
+                                        <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest block mb-2">본문 (영문)</label>
+                                        <div className="flex-1 text-[14px] leading-relaxed text-[#444] whitespace-pre-wrap bg-[#fcfcfc] p-4 rounded border border-[#f0f0f0] min-h-[180px]">
+                                            {item.bodyEn || '(No description)'}
+                                        </div>
+                                    </div>
+                                    {item.imageUrl && (
+                                        <div className="mt-6 flex-none">
+                                            <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest block mb-2">이미지</label>
+                                            <a href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="text-[12px] text-[#0070f3] hover:underline block truncate">
+                                                {item.imageUrl}
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    ))}
                 </div>
-            </div>
+            ) : (
+                <div className="vercel-card h-[400px] flex flex-col items-center justify-center border-dashed border-2 opacity-60">
+
+                    <p className="text-lg font-bold text-black mb-2">전송 대기 항목 없음</p>
+                    <p className="text-[#666] text-sm">상단 버튼을 눌러 FAIL 항목을 불러오세요.</p>
+                </div>
+            )}
         </div>
     );
 }

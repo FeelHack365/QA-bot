@@ -17,7 +17,7 @@ export default function App() {
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
-        }, 4000);
+        }, 2000);
     };
 
     const removeToast = (id) => {
@@ -50,7 +50,7 @@ export default function App() {
                             {[
                                 { id: 'uploader', label: '노션 업로드' },
                                 { id: 'tester', label: '테스트' },
-                                { id: 'slack', label: '슬랙 전송' },
+                                { id: 'slack', label: '슬랙 게시' },
                                 { id: 'settings', label: '설정' }
                             ].map(tab => (
                                 <button
@@ -71,11 +71,17 @@ export default function App() {
 
                 {/* Main Content Area */}
                 <main className="max-w-[1250px] mx-auto px-6 py-12">
-                    <div className="animate-in fade-in duration-500">
-                        {view === 'uploader' && <NotionUploader />}
-                        {view === 'slack' && <SlackSender />}
-                        {view === 'tester' && <Tester />}
-                        {view === 'settings' && <Settings />}
+                    <div className={view === 'uploader' ? 'block animate-in fade-in duration-500' : 'hidden'}>
+                        <NotionUploader />
+                    </div>
+                    <div className={view === 'tester' ? 'block animate-in fade-in duration-500' : 'hidden'}>
+                        <Tester />
+                    </div>
+                    <div className={view === 'slack' ? 'block animate-in fade-in duration-500' : 'hidden'}>
+                        <SlackSender />
+                    </div>
+                    <div className={view === 'settings' ? 'block animate-in fade-in duration-500' : 'hidden'}>
+                        <Settings />
                     </div>
                 </main>
 
