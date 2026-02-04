@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import NotionUploader from './notion_uploader';
 import SlackSender from './SlackSender';
-import TranslationHelper from './TranslationHelper';
+import Tester from './Tester';
 import Settings from './Settings';
 
 // Context for Toasts
@@ -49,7 +49,7 @@ export default function App() {
                         <nav className="flex items-center gap-8 -mb-px overflow-x-auto no-scrollbar">
                             {[
                                 { id: 'uploader', label: '노션 업로드' },
-                                { id: 'translation', label: '번역' },
+                                { id: 'tester', label: '테스트' },
                                 { id: 'slack', label: '슬랙 전송' },
                                 { id: 'settings', label: '설정' }
                             ].map(tab => (
@@ -74,7 +74,7 @@ export default function App() {
                     <div className="animate-in fade-in duration-500">
                         {view === 'uploader' && <NotionUploader />}
                         {view === 'slack' && <SlackSender />}
-                        {view === 'translation' && <TranslationHelper />}
+                        {view === 'tester' && <Tester />}
                         {view === 'settings' && <Settings />}
                     </div>
                 </main>

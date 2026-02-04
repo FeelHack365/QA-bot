@@ -15,9 +15,15 @@ export default function NotionUploader() {
     const [logs, setLogs] = useState([]);
 
     useEffect(() => {
-        const savedToken = localStorage.getItem('notion_token');
-        const savedDbId = localStorage.getItem('notion_database_id');
-        if (savedToken || savedDbId) setConfig({ token: savedToken || '', databaseId: savedDbId || '' });
+        const loadConfig = () => {
+            const savedToken = localStorage.getItem('notion_token') || '';
+            const savedDbId = localStorage.getItem('notion_database_id') || '';
+            setConfig({ token: savedToken, databaseId: savedDbId });
+        };
+        loadConfig();
+        // Also listen for storage changes in case tabs are synced
+        window.addEventListener('storage', loadConfig);
+        return () => window.removeEventListener('storage', loadConfig);
     }, []);
 
     const parseInput = (text) => {
@@ -83,9 +89,31 @@ export default function NotionUploader() {
             })
         };
 
-        const response = await fetch(apiPath, fetchOptions);
-        const data = await response.json();
-        if (!response.ok) throw new Error(`${data.code || data.message || 'Error'}: ${data.message || 'Unknown error'}`);
+        let response;
+        try {
+            response = await fetch(apiPath, fetchOptions);
+        } catch (fetchErr) {
+            console.error('Fetch error:', fetchErr);
+            throw new Error(`Network error: ${fetchErr.message}`);
+        }
+
+        let data;
+        const contentType = response.headers.get('content-type');
+        try {
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                data = { message: text };
+            }
+        } catch (jsonErr) {
+            data = { message: 'Failed to parse response' };
+        }
+
+        if (!response.ok) {
+            console.error('Notion API Error:', data);
+            throw new Error(data.code || data.message || `HTTP ${response.status}`);
+        }
         return data;
     };
 
