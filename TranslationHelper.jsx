@@ -59,9 +59,11 @@ export default function TranslationHelper() {
     };
 
     // DeepL API Call Helper
-    const callTranslateApi = async (text) => {
+    const callTranslateApi = async (texts) => {
         const isLocal = window.location.hostname === 'localhost';
         const apiPath = isLocal ? `/translate-api/v2/translate` : '/api/translate';
+
+        const payload = Array.isArray(texts) ? texts : [texts];
 
         const options = isLocal ? {
             method: 'POST',
@@ -70,7 +72,7 @@ export default function TranslationHelper() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                text: [text],
+                text: payload,
                 target_lang: 'EN',
                 source_lang: 'KO'
             })
@@ -79,7 +81,7 @@ export default function TranslationHelper() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 apiKey: settings.deeplApiKey,
-                text: text,
+                text: payload,
                 target_lang: 'EN',
                 source_lang: 'KO'
             })
@@ -88,7 +90,7 @@ export default function TranslationHelper() {
         const response = await fetch(apiPath, options);
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'DeepL API 오류');
-        return data.translations[0].text;
+        return data.translations.map(t => t.text);
     };
 
     // Fetch items from Notion
@@ -151,7 +153,13 @@ export default function TranslationHelper() {
         setTranslationItems(newItems);
 
         try {
-            const translated = await callTranslateApi(item.bodyKr);
+            const textsToTranslate = [];
+            if (item.title) textsToTranslate.push(item.title);
+            if (item.bodyKr) textsToTranslate.push(item.bodyKr);
+
+            const results = await callTranslateApi(textsToTranslate);
+            const translated = results.join('\n\n');
+
             const updatedItems = [...translationItems];
             updatedItems[index].bodyEn = translated;
             updatedItems[index].status = 'translated';
@@ -185,7 +193,13 @@ export default function TranslationHelper() {
                 setTranslationItems([...newItems]);
 
                 try {
-                    const translated = await callTranslateApi(newItems[i].bodyKr);
+                    const textsToTranslate = [];
+                    if (newItems[i].title) textsToTranslate.push(newItems[i].title);
+                    if (newItems[i].bodyKr) textsToTranslate.push(newItems[i].bodyKr);
+
+                    const results = await callTranslateApi(textsToTranslate);
+                    const translated = results.join('\n\n');
+
                     newItems[i].bodyEn = translated;
                     newItems[i].status = 'translated';
                     completedCount++;
@@ -301,7 +315,7 @@ export default function TranslationHelper() {
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-[32px] font-bold tracking-tighter text-black flex items-center gap-3">
-                        <IconTranslate /> 번역 헬퍼
+                        번역 헬퍼
                     </h1>
                     <p className="text-[#666] text-[15px]">본문(한글)이 있는 항목을 검색하여 DeepL로 자동 번역하고 노션에 업데이트합니다.</p>
                 </div>
@@ -377,6 +391,7 @@ export default function TranslationHelper() {
                                 <div className="p-6 border-r border-[#eaeaea]">
                                     <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest block mb-2">원문 (한글)</label>
                                     <div className="text-[14px] leading-relaxed text-[#444] min-h-[120px] whitespace-pre-wrap bg-[#fcfcfc] p-4 rounded border border-[#f0f0f0]">
+                                        {item.title && <div className="font-bold mb-2 border-b border-[#eee] pb-1">{item.title}</div>}
                                         {item.bodyKr}
                                     </div>
                                 </div>
@@ -403,12 +418,12 @@ export default function TranslationHelper() {
             )}
 
             {/* Helper Footer */}
-            <div className="vercel-card p-6 bg-black text-white">
-                <h3 className="text-[14px] font-bold mb-4 flex items-center gap-2">
+            <div className="vercel-card p-6 bg-[#fafafa] border-[#eaeaea]">
+                <h3 className="text-[14px] font-bold mb-4 flex items-center gap-2 text-black">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#0070f3]" />
                     사용 방법
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-80 text-[13px]">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-[13px] text-black">
                     <div>
                         <span className="font-bold text-[#0070f3] mr-2">01.</span>
                         노션에서 본문(한글)이 입력되고 본문(영문)이 비어있는 항목을 준비합니다.

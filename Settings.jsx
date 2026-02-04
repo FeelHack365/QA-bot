@@ -40,12 +40,20 @@ export default function Settings() {
 
     return (
         <div className="space-y-12">
-            <div>
-                <h1 className="text-[32px] font-bold tracking-tighter text-black">설정</h1>
-                <p className="text-[#666] text-[15px]">API 토큰 및 환경 설정을 관리합니다. 변경 사항은 자동으로 저장됩니다.</p>
+            <div className="flex items-end justify-between">
+                <div>
+                    <h1 className="text-[32px] font-bold tracking-tighter text-black">설정</h1>
+                    <p className="text-[#666] text-[15px]">API 토큰 및 환경 설정을 관리합니다. 변경 사항은 자동으로 저장됩니다.</p>
+                </div>
+                <button
+                    onClick={() => addToast('설정이 성공적으로 저장되었습니다.')}
+                    className="vercel-btn-primary"
+                >
+                    저장
+                </button>
             </div>
 
-            <div className="space-y-8 max-w-[1000px]">
+            <div className="space-y-8">
                 {/* Notion Section */}
                 <section className="vercel-card overflow-hidden">
                     <div className="px-8 py-6 border-b border-[#eaeaea]">
@@ -166,18 +174,6 @@ export default function Settings() {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div className="px-8 py-4 border-t border-[#eaeaea] bg-white flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-[#0070f3]" />
-                            <span className="text-[12px] text-[#888] italic">변경 사항은 실시간으로 저장됩니다.</span>
-                        </div>
-                        <button
-                            onClick={() => addToast('설정이 성공적으로 동기화되었습니다.')}
-                            className="vercel-btn-primary"
-                        >
-                            동기화 확인
-                        </button>
                     </div>
                 </section>
             </div>
