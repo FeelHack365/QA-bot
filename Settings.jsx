@@ -36,6 +36,9 @@ export default function Settings() {
         setConfig(newConfig);
         const storageKey = key === 'token' ? 'notion_token' : key === 'databaseId' ? 'notion_database_id' : key;
         localStorage.setItem(storageKey, val.trim());
+
+        // Trigger storage event manually for the same window to sync hidden/mounted components
+        window.dispatchEvent(new Event('storage'));
     };
 
     return (

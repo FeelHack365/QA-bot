@@ -59,7 +59,14 @@ export default function SlackSender() {
     };
 
     const loadFailItems = async () => {
-        if (!notionToken || !databaseId) {
+        // Refresh settings from localStorage to ensure we have the latest values
+        const currentToken = localStorage.getItem('notion_token') || '';
+        const currentDbId = localStorage.getItem('notion_database_id') || '';
+
+        setNotionToken(currentToken);
+        setDatabaseId(currentDbId);
+
+        if (!currentToken || !currentDbId) {
             addToast('설정 탭에서 노션 API 토큰과 데이터베이스 ID를 확인해주세요.', 'error');
             return;
         }
