@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from './App';
+import { callGemini } from './GeminiService';
 
 const IconTranslate = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 8 6 6" /><path d="m4 14 6-6 2-3" /><path d="M2 5h12" /><path d="M7 2h1" /><path d="m22 22-5-10-5 10" /><path d="M14 18h6" /></svg>;
 const IconCheck = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0070f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
@@ -12,7 +13,10 @@ export default function TranslationHelper() {
     const [settings, setSettings] = useState({
         notionToken: '',
         databaseId: '',
-        deeplApiKey: ''
+        databaseId: '',
+        deeplApiKey: '',
+        geminiApiKey: '',
+        glossary: ''
     });
 
     // State
@@ -24,7 +28,9 @@ export default function TranslationHelper() {
         setSettings({
             notionToken: localStorage.getItem('notion_token') || '',
             databaseId: localStorage.getItem('notion_database_id') || '',
-            deeplApiKey: localStorage.getItem('deeplApiKey') || ''
+            deeplApiKey: localStorage.getItem('deeplApiKey') || '',
+            geminiApiKey: localStorage.getItem('geminiApiKey') || '',
+            glossary: localStorage.getItem('glossary') || ''
         });
     }, []);
 
@@ -58,39 +64,9 @@ export default function TranslationHelper() {
         return data;
     };
 
-    // DeepL API Call Helper
-    const callTranslateApi = async (texts) => {
-        const isLocal = window.location.hostname === 'localhost';
-        const apiPath = isLocal ? `/translate-api/v2/translate` : '/api/translate';
-
-        const payload = Array.isArray(texts) ? texts : [texts];
-
-        const options = isLocal ? {
-            method: 'POST',
-            headers: {
-                'Authorization': `DeepL-Auth-Key ${settings.deeplApiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                text: payload,
-                target_lang: 'EN',
-                source_lang: 'KO'
-            })
-        } : {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                apiKey: settings.deeplApiKey,
-                text: payload,
-                target_lang: 'EN',
-                source_lang: 'KO'
-            })
-        };
-
-        const response = await fetch(apiPath, options);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'DeepL API 오류');
-        return data.translations.map(t => t.text);
+    // Gemini API Call Helper
+    const callGeminiApi = async (text) => {
+        return await callGemini(text, settings.glossary, settings.geminiApiKey);
     };
 
     // Fetch items from Notion
@@ -142,8 +118,8 @@ export default function TranslationHelper() {
 
     // Individual item translation
     const translateItem = async (index) => {
-        if (!settings.deeplApiKey) {
-            addToast('설정 탭에서 DeepL API Key를 먼저 입력해주세요.', 'error');
+        if (!settings.geminiApiKey) {
+            addToast('설정 탭에서 Gemini API Key를 먼저 입력해주세요.', 'error');
             return;
         }
 
@@ -153,18 +129,15 @@ export default function TranslationHelper() {
         setTranslationItems(newItems);
 
         try {
-            const textsToTranslate = [];
-            if (item.title) textsToTranslate.push(item.title);
-            if (item.bodyKr) textsToTranslate.push(item.bodyKr);
-
-            const results = await callTranslateApi(textsToTranslate);
-            const translated = results.join('\n\n');
+            const inputText = `제목: ${item.title}\n내용: ${item.bodyKr}`;
+            const result = await callGeminiApi(inputText);
 
             const updatedItems = [...translationItems];
-            updatedItems[index].bodyEn = translated;
+            updatedItems[index].bodyKr = result.kr;
+            updatedItems[index].bodyEn = result.en;
             updatedItems[index].status = 'translated';
             setTranslationItems(updatedItems);
-            addToast(`${item.no} 번역 완료!`);
+            addToast(`${item.no} 번역 및 스타일 변환 완료!`);
         } catch (err) {
             const updatedItems = [...translationItems];
             updatedItems[index].status = 'error';
@@ -193,21 +166,18 @@ export default function TranslationHelper() {
                 setTranslationItems([...newItems]);
 
                 try {
-                    const textsToTranslate = [];
-                    if (newItems[i].title) textsToTranslate.push(newItems[i].title);
-                    if (newItems[i].bodyKr) textsToTranslate.push(newItems[i].bodyKr);
+                    const inputText = `제목: ${newItems[i].title}\n내용: ${newItems[i].bodyKr}`;
+                    const result = await callGeminiApi(inputText);
 
-                    const results = await callTranslateApi(textsToTranslate);
-                    const translated = results.join('\n\n');
-
-                    newItems[i].bodyEn = translated;
+                    newItems[i].bodyKr = result.kr;
+                    newItems[i].bodyEn = result.en;
                     newItems[i].status = 'translated';
                     completedCount++;
                     setProgress(prev => ({ ...prev, current: completedCount }));
                     setTranslationItems([...newItems]);
 
-                    // DeepL Rate Limit 
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    // Gemini Rate Limit 
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 } catch (err) {
                     newItems[i].status = 'error';
                     setTranslationItems([...newItems]);
@@ -233,6 +203,9 @@ export default function TranslationHelper() {
         try {
             await callNotionApi(`/v1/pages/${item.id}`, 'PATCH', {
                 properties: {
+                    '본문 (한글)': {
+                        rich_text: [{ text: { content: item.bodyKr } }]
+                    },
                     '본문 (영문)': {
                         rich_text: [{ text: { content: item.bodyEn } }]
                     }
@@ -270,6 +243,9 @@ export default function TranslationHelper() {
                 try {
                     await callNotionApi(`/v1/pages/${newItems[i].id}`, 'PATCH', {
                         properties: {
+                            '본문 (한글)': {
+                                rich_text: [{ text: { content: newItems[i].bodyKr } }]
+                            },
                             '본문 (영문)': {
                                 rich_text: [{ text: { content: newItems[i].bodyEn } }]
                             }

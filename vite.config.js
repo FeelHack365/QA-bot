@@ -24,6 +24,11 @@ export default defineConfig({
                 target: 'https://api-free.deepl.com',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/translate-api/, ''),
+            },
+            '/gemini-api': {
+                target: 'https://generativelanguage.googleapis.com',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/gemini-api/, ''),
             }
         }
     }

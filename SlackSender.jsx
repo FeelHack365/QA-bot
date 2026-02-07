@@ -139,7 +139,7 @@ export default function SlackSender() {
                 <button
                     onClick={loadFailItems}
                     disabled={loading}
-                    className="vercel-btn-secondary"
+                    className="vercel-btn-primary"
                 >
                     {loading ? '불러오는 중' : 'FAIL 항목 불러오기'}
                 </button>

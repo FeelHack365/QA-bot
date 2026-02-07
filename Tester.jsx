@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from './App';
+import { callGemini, analyzeScenarioWithImage } from './GeminiService';
 
 const IconFlask = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v12a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3" /><path d="M18 7H6" /><path d="M14 3v8" /><path d="M10 21h4" /></svg>;
 const IconCheck = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
@@ -11,7 +12,9 @@ export default function Tester() {
     const [settings, setSettings] = useState({
         notionToken: '',
         databaseId: '',
-        deeplApiKey: ''
+        deeplApiKey: '',
+        geminiApiKey: '',
+        glossary: ''
     });
 
     const [testItems, setTestItems] = useState([]);
@@ -27,12 +30,26 @@ export default function Tester() {
         imageUrl: ''
     });
 
+    // New Scenario Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [newScenario, setNewScenario] = useState({
+        memo: '',
+        image: null,
+        imagePreview: ''
+    });
+    const [analysisResult, setAnalysisResult] = useState(null);
+    const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
+    const fileInputRef = useRef(null);
+
     useEffect(() => {
         const loadSettings = () => {
             setSettings({
                 notionToken: localStorage.getItem('notion_token') || '',
                 databaseId: localStorage.getItem('notion_database_id') || '',
-                deeplApiKey: localStorage.getItem('deeplApiKey') || ''
+                deeplApiKey: localStorage.getItem('deeplApiKey') || '',
+                geminiApiKey: localStorage.getItem('geminiApiKey') || '',
+                glossary: localStorage.getItem('glossary') || ''
             });
         };
         loadSettings();
@@ -70,29 +87,9 @@ export default function Tester() {
         return data;
     };
 
-    // DeepL API Call Helper
-    const callTranslateApi = async (texts) => {
-        const isLocal = window.location.hostname === 'localhost';
-        const apiPath = isLocal ? `/translate-api/v2/translate` : '/api/translate';
-        const payload = Array.isArray(texts) ? texts : [texts];
-
-        const options = isLocal ? {
-            method: 'POST',
-            headers: {
-                'Authorization': `DeepL-Auth-Key ${settings.deeplApiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ text: payload, target_lang: 'EN', source_lang: 'KO' })
-        } : {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: settings.deeplApiKey, text: payload, target_lang: 'EN', source_lang: 'KO' })
-        };
-
-        const response = await fetch(apiPath, options);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'DeepL API 오류');
-        return data.translations.map(t => t.text);
+    // Gemini API Call Helper
+    const callGeminiApi = async (text) => {
+        return await callGemini(text, settings.glossary, settings.geminiApiKey);
     };
 
     const loadPendingItems = async () => {
@@ -199,13 +196,15 @@ export default function Tester() {
         const item = testItems[currentIndex];
 
         try {
-            // 1. 번역 (DeepL)
+            // 1. Gemini 번역 & QA 스타일 변환
+            let bodyKr = failForm.bodyKr;
             let bodyEn = '';
-            if (settings.deeplApiKey) {
-                const textsToTranslate = [failForm.title];
-                if (failForm.bodyKr) textsToTranslate.push(failForm.bodyKr);
-                const translated = await callTranslateApi(textsToTranslate);
-                bodyEn = translated.join('\n\n');
+
+            if (settings.geminiApiKey) {
+                const inputText = `제목: ${failForm.title}\n내용: ${failForm.bodyKr}`;
+                const result = await callGeminiApi(inputText);
+                bodyKr = result.kr;
+                bodyEn = result.en;
             }
 
             // 2. Notion 업데이트
@@ -213,7 +212,7 @@ export default function Tester() {
                 properties: {
                     '결과': { select: { name: 'FAIL' } },
                     '제목': { rich_text: [{ text: { content: failForm.title } }] },
-                    '본문 (한글)': { rich_text: [{ text: { content: failForm.bodyKr } }] },
+                    '본문 (한글)': { rich_text: [{ text: { content: bodyKr } }] },
                     '본문 (영문)': { rich_text: [{ text: { content: bodyEn } }] },
                     '이미지 링크': { url: failForm.imageUrl || null }
                 }
@@ -252,6 +251,109 @@ export default function Tester() {
         }
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setNewScenario(prev => ({ ...prev, image: file, imagePreview: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const generateUniqueNo = async () => {
+        try {
+            const dbId = settings.databaseId.trim().replace(/-/g, '');
+            // Fetch more items to find the true maximum number in the database
+            const data = await callNotionApi(`/v1/databases/${dbId}/query`, 'POST', {
+                page_size: 100
+            });
+
+            const numericNos = data.results
+                .map(p => p.properties['No.']?.title?.[0]?.text?.content || '')
+                .map(no => {
+                    const match = no.match(/\d+/);
+                    return match ? parseInt(match[0]) : NaN;
+                })
+                .filter(no => !isNaN(no));
+
+            if (numericNos.length > 0) {
+                const maxNo = Math.max(...numericNos);
+                return `Gem${(maxNo + 1).toString().padStart(3, '0')}`;
+            }
+            return `Gem001`;
+        } catch (err) {
+            console.error('No generation error:', err);
+            return `Gem${Math.floor(Math.random() * 900) + 100}`;
+        }
+    };
+
+    const handleAnalysis = async () => {
+        if (!newScenario.memo.trim()) { addToast('메모를 입력해주세요.', 'error'); return; }
+        if (!newScenario.imagePreview) { addToast('이미지를 첨부해주세요.', 'error'); return; }
+        if (!settings.geminiApiKey) { addToast('Gemini API Key가 필요합니다.', 'error'); return; }
+
+        setIsGenerating(true);
+        try {
+            const analysis = await analyzeScenarioWithImage(
+                newScenario.imagePreview,
+                newScenario.memo,
+                settings.glossary,
+                settings.geminiApiKey
+            );
+            setAnalysisResult(analysis);
+            setIsAnalysisComplete(true);
+            addToast('AI 분석이 완료되었습니다. 내용을 확인 후 저장하세요.');
+        } catch (err) {
+            addToast(`분석 오류: ${err.message}`, 'error');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handlePushToNotion = async () => {
+        if (!analysisResult) return;
+        setIsProcessing(true);
+        try {
+            const uniqueNo = await generateUniqueNo();
+            const dbId = settings.databaseId.trim().replace(/-/g, '');
+            await callNotionApi('/v1/pages', 'POST', {
+                parent: { database_id: dbId },
+                properties: {
+                    'No.': { title: [{ text: { content: uniqueNo } }] },
+                    '1 Depth 화면': { select: { name: analysisResult.depth1 } },
+                    '2 Depth 영역': { rich_text: [{ text: { content: analysisResult.depth2 } }] },
+                    '확인 사항': { rich_text: [{ text: { content: analysisResult.checkPoint } }] },
+                    '시나리오': { rich_text: [{ text: { content: analysisResult.scenario } }] },
+                    '결과': { select: { name: 'FAIL' } },
+                    '제목': { rich_text: [{ text: { content: analysisResult.title } }] },
+                    '본문 (한글)': { rich_text: [{ text: { content: analysisResult.bodyKr } }] },
+                    '본문 (영문)': { rich_text: [{ text: { content: analysisResult.bodyEn } }] },
+                    '이미지 링크': { url: null },
+                    '전송 상태': { select: { name: '전송완료' } }
+                }
+            });
+
+            addToast(`✅ 새 시나리오(${uniqueNo})가 성공적으로 추가되었습니다!`, 'success');
+            setIsModalOpen(false);
+            setNewScenario({ memo: '', image: null, imagePreview: '' });
+            setAnalysisResult(null);
+            setIsAnalysisComplete(false);
+        } catch (err) {
+            addToast(`저장 오류: ${err.message}`, 'error');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+        setAnalysisResult(null);
+        setIsAnalysisComplete(false);
+        setNewScenario({ memo: '', image: null, imagePreview: '' });
+    };
+
     const currentItem = testItems[currentIndex];
 
     return (
@@ -263,9 +365,14 @@ export default function Tester() {
                     </h1>
                     <p className="text-[#666] text-[15px]">PENDING 상태의 항목을 불러와 하나씩 테스트하고 결과를 기록합니다.</p>
                 </div>
-                <button onClick={loadPendingItems} disabled={loading} className="vercel-btn-secondary">
-                    {loading ? '불러오는 중...' : 'PENDING 항목 불러오기'}
-                </button>
+                <div className="flex gap-3">
+                    <button onClick={() => setIsModalOpen(true)} className="vercel-btn-secondary !border-black">
+                        새 시나리오 추가
+                    </button>
+                    <button onClick={loadPendingItems} disabled={loading} className="vercel-btn-primary">
+                        {loading ? '불러오는 중...' : 'PENDING 항목 불러오기'}
+                    </button>
+                </div>
             </div>
 
             {testItems.length > 0 ? (
@@ -429,6 +536,190 @@ export default function Tester() {
                 <div className="vercel-card h-[400px] flex flex-col items-center justify-center border-dashed border-2 opacity-60">
                     <p className="text-lg font-bold text-black mb-2">테스트 준비 완료</p>
                     <p className="text-[#666] text-sm">상단 버튼을 눌러 작업을 시작하세요.</p>
+                </div>
+            )}
+
+            {/* New Scenario Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
+                    <div className={`bg-white rounded-3xl w-full ${isAnalysisComplete ? 'max-w-[1000px]' : 'max-w-[600px]'} shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]`}>
+                        <div className="px-8 py-6 border-b border-[#eaeaea] flex justify-between items-center bg-white sticky top-0 z-10">
+                            <h2 className="text-xl font-bold">새 시나리오 추가</h2>
+                            <button onClick={handleModalClose} className="text-[#888] hover:text-black transition-colors">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            {!isAnalysisComplete ? (
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">스크린샷 첨부</label>
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="aspect-video w-full border-2 border-dashed border-[#eaeaea] rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-black transition-all bg-[#fafafa] overflow-hidden group"
+                                        >
+                                            {newScenario.imagePreview ? (
+                                                <div className="relative w-full h-full">
+                                                    <img src={newScenario.imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all">
+                                                        <span className="text-white opacity-0 group-hover:opacity-100 font-bold">이미지 변경하기</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
+                                                    <p className="text-[13px] text-[#888]">이미지를 드래그하거나 클릭하여 업로드</p>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleImageChange}
+                                            accept="image/*"
+                                            className="hidden"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">메모 (상황 설명)</label>
+                                        <textarea
+                                            value={newScenario.memo}
+                                            onChange={(e) => setNewScenario(prev => ({ ...prev, memo: e.target.value }))}
+                                            placeholder="예: 마이페이지 프로필 수정 화면인데, 저장 버튼이 하단에 가려져서 안보임"
+                                            className="w-full h-28 px-4 py-3 border border-[#eaeaea] focus:border-black rounded-xl text-[14px] outline-none transition-all resize-none bg-[#fafafa] shadow-inner"
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    {/* Left Side: Basic Info */}
+                                    <div className="space-y-6">
+                                        <div className="p-4 bg-[#f8f8f8] rounded-2xl border border-[#eee]">
+                                            <img src={newScenario.imagePreview} className="w-full rounded-xl shadow-sm border border-[#eee]" alt="Screenshot" />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">1 Depth (화면)</label>
+                                                <input
+                                                    type="text"
+                                                    value={analysisResult.depth1}
+                                                    onChange={(e) => setAnalysisResult({ ...analysisResult, depth1: e.target.value })}
+                                                    className="w-full px-4 py-2.5 border border-[#eaeaea] focus:border-black rounded-lg text-[14px] bg-white outline-none transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">2 Depth (영역)</label>
+                                                <input
+                                                    type="text"
+                                                    value={analysisResult.depth2}
+                                                    onChange={(e) => setAnalysisResult({ ...analysisResult, depth2: e.target.value })}
+                                                    className="w-full px-4 py-2.5 border border-[#eaeaea] focus:border-black rounded-lg text-[14px] bg-white outline-none transition-all"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">확인 사항</label>
+                                            <input
+                                                type="text"
+                                                value={analysisResult.checkPoint}
+                                                onChange={(e) => setAnalysisResult({ ...analysisResult, checkPoint: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-[#eaeaea] focus:border-black rounded-lg text-[14px] bg-white outline-none transition-all"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">시나리오 (1줄 요약)</label>
+                                            <input
+                                                type="text"
+                                                value={analysisResult.scenario}
+                                                onChange={(e) => setAnalysisResult({ ...analysisResult, scenario: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-[#eaeaea] focus:border-black rounded-lg text-[14px] bg-white outline-none transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Right Side: Detailed Results */}
+                                    <div className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">제목 (자동 구성)</label>
+                                            <input
+                                                type="text"
+                                                value={analysisResult.title}
+                                                onChange={(e) => setAnalysisResult({ ...analysisResult, title: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-[#eaeaea] focus:border-black rounded-lg text-[14px] bg-white outline-none transition-all font-bold"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">본문 (한글)</label>
+                                            <textarea
+                                                value={analysisResult.bodyKr}
+                                                onChange={(e) => setAnalysisResult({ ...analysisResult, bodyKr: e.target.value })}
+                                                className="w-full h-40 px-4 py-3 border border-[#eaeaea] focus:border-black rounded-xl text-[13px] bg-white outline-none transition-all resize-none leading-relaxed"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-black text-[#888] uppercase tracking-widest">본문 (영어 - 번역)</label>
+                                            <textarea
+                                                value={analysisResult.bodyEn}
+                                                onChange={(e) => setAnalysisResult({ ...analysisResult, bodyEn: e.target.value })}
+                                                className="w-full h-40 px-4 py-3 border border-[#eaeaea] focus:border-black rounded-xl text-[13px] bg-white outline-none transition-all resize-none leading-relaxed"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="px-8 py-6 bg-[#fafafa] border-t border-[#eaeaea] flex gap-3 sticky bottom-0 z-10">
+                            <button
+                                onClick={handleModalClose}
+                                className="flex-1 h-12 rounded-xl font-bold text-[#666] hover:text-black hover:bg-white border border-transparent hover:border-[#eaeaea] transition-all"
+                            >
+                                취소
+                            </button>
+
+                            {!isAnalysisComplete ? (
+                                <button
+                                    onClick={handleAnalysis}
+                                    disabled={isGenerating}
+                                    className="flex-[2] h-12 bg-black text-white rounded-xl font-bold hover:bg-[#333] transition-all flex items-center justify-center gap-2 shadow-lg disabled:bg-[#888]"
+                                >
+                                    {isGenerating ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>AI 분석 중...</span>
+                                        </>
+                                    ) : (
+                                        <span>내용 구성 및 분석하기</span>
+                                    )}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handlePushToNotion}
+                                    disabled={isProcessing}
+                                    className="flex-[2] h-12 bg-[#0070f3] text-white rounded-xl font-bold hover:bg-[#0060df] transition-all flex items-center justify-center gap-2 shadow-lg disabled:bg-[#888]"
+                                >
+                                    {isProcessing ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>전송 중...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                                            <span>노션에 최종 전송</span>
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

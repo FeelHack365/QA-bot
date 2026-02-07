@@ -7,7 +7,9 @@ export default function Settings() {
         token: '', databaseId: '',
         slackToken: '', channelId: '',
         companySlackToken: '', projectChannelId: '', assigneeUserId: '',
-        deeplApiKey: ''
+        deeplApiKey: '',
+        geminiApiKey: '',
+        glossary: ''
     });
 
     useEffect(() => {
@@ -27,7 +29,9 @@ export default function Settings() {
             companySlackToken: savedCompanySlackToken || '',
             projectChannelId: savedProjectChannelId || '',
             assigneeUserId: savedAssigneeUserId || '',
-            deeplApiKey: localStorage.getItem('deeplApiKey') || ''
+            deeplApiKey: localStorage.getItem('deeplApiKey') || '',
+            geminiApiKey: localStorage.getItem('geminiApiKey') || '',
+            glossary: localStorage.getItem('glossary') || ''
         });
     }, []);
 
@@ -85,6 +89,38 @@ export default function Settings() {
                                     className="w-full px-4 py-2 border border-[#eaeaea] focus:border-black rounded-md text-[14px] font-mono outline-none transition-all shadow-sm"
                                 />
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Gemini & Glossary Section */}
+                <section className="vercel-card overflow-hidden">
+                    <div className="px-8 py-6 border-b border-[#eaeaea]">
+                        <h2 className="text-xl font-bold">Gemini 번역 & 용어 사전</h2>
+                        <p className="text-[13px] text-[#666] mt-1">고퀄리티 번역과 전문 용어 관리를 위한 설정입니다.</p>
+                    </div>
+                    <div className="px-8 py-10 space-y-8 bg-[#fafafa]">
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">Gemini API Key</label>
+                            <input
+                                type="password"
+                                value={config.geminiApiKey}
+                                onChange={(e) => handleChange('geminiApiKey', e.target.value)}
+                                placeholder="AIza..."
+                                className="w-full px-4 py-2 border border-[#eaeaea] focus:border-black rounded-md text-[14px] font-mono outline-none transition-all shadow-sm"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-bold text-[#888] uppercase tracking-widest">용어 사전 (Glossary)</label>
+                            <textarea
+                                value={config.glossary}
+                                onChange={(e) => handleChange('glossary', e.target.value)}
+                                placeholder="한국어: 영어&#10;로그인: Login&#10;결제: Payment"
+                                className="w-full h-40 px-4 py-3 border border-[#eaeaea] focus:border-black rounded-md text-[14px] outline-none transition-all bg-white shadow-sm font-mono"
+                            />
+                            <p className="text-[12px] text-[#888] mt-2">
+                                한 줄에 하나씩 '단어: 번역어' 형식으로 입력하세요.
+                            </p>
                         </div>
                     </div>
                 </section>
